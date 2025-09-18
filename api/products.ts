@@ -1,4 +1,3 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // Simple in-memory products as fallback; in real use, connect to DB
 const products = [
@@ -16,7 +15,7 @@ const products = [
   },
 ];
 
-export default function handler(req: VercelRequest, res: VercelResponse) {
+export default function handler(req: any, res: any) {
   if (req.method === 'GET') {
     return res.status(200).json(products);
   }
