@@ -21,7 +21,7 @@ import {
 import { Link } from 'react-router-dom';
 import ProductCard from '@/components/ProductCard';
 import WhatsAppButton from '@/components/WhatsAppButton';
-import { products } from '@/data/products';
+import { useProductsContext } from '@/context/ProductsContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import HowItWorks from './HowItWorks';
 
@@ -80,6 +80,7 @@ const MiniFAQ = () => {
 };
 
 const Home: React.FC = () => {
+  const { products } = useProductsContext();
   const { formatPrice } = useCurrency();
   const featuredProducts = products.slice(0, 9);
 

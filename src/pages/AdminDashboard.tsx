@@ -25,45 +25,46 @@ import {
   Zap,
   Crown
 } from 'lucide-react';
-import { products } from '@/data/products';
-import { siteConfig } from '@/data/site-config';
-
-// Lightweight settings persisted in localStorage to affect runtime behavior
-const LS_SETTINGS_KEY = 'ks_settings_v1';
-type RuntimeSettings = { whatsappDirectOrder?: boolean };
-function loadSettings(): RuntimeSettings {
-  try { return JSON.parse(localStorage.getItem(LS_SETTINGS_KEY) || '{}'); } catch { return {}; }
-}
-function saveSettings(s: RuntimeSettings) { try { localStorage.setItem(LS_SETTINGS_KEY, JSON.stringify(s)); } catch {} }
+import { useProductsContext } from '@/context/ProductsContext';
+import { useSettings } from '@/context/SettingsContext';
 
 const AdminDashboard: React.FC = () => {
-  const [whatsappNumber, setWhatsappNumber] = useState('+923276847960');
+  const { settings, updateSettings } = useSettings();
+  const { products } = useProductsContext();
+
+  const [whatsappNumber, setWhatsappNumber] = useState(settings.whatsappNumber);
   const [supportEmail, setSupportEmail] = useState('itxahmadjan@gmail.com');
   const [siteLogo, setSiteLogo] = useState('');
   const [heroTitle, setHeroTitle] = useState('STOP BLEEDING MONEY On Overpriced Software!');
-  const [heroSubtitle, setHeroSubtitle] = useState('🔥 10,000+ Smart Entrepreneurs have already ditched expensive subscriptions...');
-  
+  const [heroSubtitle, setHeroSubtitle] = useState('10,000+ Smart Entrepreneurs have already ditched expensive subscriptions...');
+
   // Site Settings
   const [siteSettings, setSiteSettings] = useState({
     siteName: 'King Subscription',
     tagline: 'Premium AI & SEO Tools at 50% OFF',
     metaDescription: 'Get premium AI & SEO tools at 50% OFF! ChatGPT Plus, Canva Pro, Adobe Creative Suite & 15+ tools. Instant access, 24/7 support.',
-    enablePurchaseNotifications: true,
-    enableFloatingCart: true,
+    enablePurchaseNotifications: settings.enablePurchaseNotifications,
+    enableFloatingCart: settings.enableFloatingCart,
     enablePopups: true,
     currencyDisplay: 'USD',
-    showDiscountBadges: true,
-    maintenanceMode: false
+    showDiscountBadges: settings.showDiscountBadges,
+    maintenanceMode: false,
   });
 
-  const [whatsappDirectOrder, setWhatsappDirectOrder] = useState<boolean>(siteConfig.whatsappDirectOrder);
+  const [whatsappDirectOrder, setWhatsappDirectOrder] = useState<boolean>(settings.whatsappDirectOrder);
 
   useEffect(() => {
-    const s = loadSettings();
-    if (typeof s.whatsappDirectOrder === 'boolean') setWhatsappDirectOrder(s.whatsappDirectOrder);
-  }, []);
+    setWhatsappDirectOrder(settings.whatsappDirectOrder);
+    setWhatsappNumber(settings.whatsappNumber);
+    setSiteSettings((prev) => ({
+      ...prev,
+      enablePurchaseNotifications: settings.enablePurchaseNotifications,
+      enableFloatingCart: settings.enableFloatingCart,
+      showDiscountBadges: settings.showDiscountBadges,
+    }));
+  }, [settings]);
 
-  // Popup/Announcement Settings
+// Popup/Announcement Settings
   const [popupSettings, setPopupSettings] = useState({
     enabled: true,
     title: '🔥 Limited Time Offer!',
@@ -95,7 +96,15 @@ const AdminDashboard: React.FC = () => {
   });
 
   const handleSaveSettings = () => {
-    // In a real app, this would save to backend/database
+    updateSettings({
+      whatsappNumber: whatsappNumber.trim(),
+      whatsappDirectOrder,
+      enablePurchaseNotifications: siteSettings.enablePurchaseNotifications,
+      enableFloatingCart: siteSettings.enableFloatingCart,
+      showDiscountBadges: siteSettings.showDiscountBadges,
+    });
+
+    // In a real app, this would also persist to a backend/database
     alert('Settings saved successfully!');
   };
 
@@ -178,6 +187,7 @@ const AdminDashboard: React.FC = () => {
                       id="whatsapp"
                       value={whatsappNumber}
                       onChange={(e) => setWhatsappNumber(e.target.value)}
+                      onBlur={() => updateSettings({ whatsappNumber: whatsappNumber.trim() })}
                       placeholder="+923276847960"
                     />
                     <p className="text-xs text-gray-500 mt-1">
@@ -264,53 +274,78 @@ const AdminDashboard: React.FC = () => {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Site Features</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Purchase Notifications</Label>
-                    <p className="text-sm text-gray-500">Show fake purchase notifications to visitors</p>
+                          <Card>
+                <CardHeader>
+                  <CardTitle>Site Features</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Purchase Notifications</Label>
+                      <p className="text-sm text-gray-500">Show fake purchase notifications to visitors</p>
+                    </div>
+                    <Switch
+                      checked={siteSettings.enablePurchaseNotifications}
+                      onCheckedChange={(checked) => {
+                        const value = Boolean(checked);
+                        setSiteSettings(prev => ({ ...prev, enablePurchaseNotifications: value }));
+                        updateSettings({ enablePurchaseNotifications: value });
+                      }}
+                    />
                   </div>
-                  <Switch
-                    checked={siteSettings.enablePurchaseNotifications}
-                    onCheckedChange={(checked) => setSiteSettings({...siteSettings, enablePurchaseNotifications: checked})}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Floating Cart</Label>
-                    <p className="text-sm text-gray-500">Show floating WhatsApp cart button</p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Floating Cart</Label>
+                      <p className="text-sm text-gray-500">Show floating WhatsApp cart button</p>
+                    </div>
+                    <Switch
+                      checked={siteSettings.enableFloatingCart}
+                      onCheckedChange={(checked) => {
+                        const value = Boolean(checked);
+                        setSiteSettings(prev => ({ ...prev, enableFloatingCart: value }));
+                        updateSettings({ enableFloatingCart: value });
+                      }}
+                    />
                   </div>
-                  <Switch
-                    checked={siteSettings.enableFloatingCart}
-                    onCheckedChange={(checked) => setSiteSettings({...siteSettings, enableFloatingCart: checked})}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Discount Badges</Label>
-                    <p className="text-sm text-gray-500">Show discount percentage on product cards</p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Discount Badges</Label>
+                      <p className="text-sm text-gray-500">Show discount percentage on product cards</p>
+                    </div>
+                    <Switch
+                      checked={siteSettings.showDiscountBadges}
+                      onCheckedChange={(checked) => {
+                        const value = Boolean(checked);
+                        setSiteSettings(prev => ({ ...prev, showDiscountBadges: value }));
+                        updateSettings({ showDiscountBadges: value });
+                      }}
+                    />
                   </div>
-                  <Switch
-                    checked={siteSettings.showDiscountBadges}
-                    onCheckedChange={(checked) => setSiteSettings({...siteSettings, showDiscountBadges: checked})}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Maintenance Mode</Label>
-                    <p className="text-sm text-gray-500 text-red-600">⚠️ Will disable the site for visitors</p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>WhatsApp Direct Order</Label>
+                      <p className="text-sm text-gray-500">Skip form and open WhatsApp directly</p>
+                    </div>
+                    <Switch
+                      checked={whatsappDirectOrder}
+                      onCheckedChange={(checked) => {
+                        setWhatsappDirectOrder(checked as boolean);
+                        updateSettings({ whatsappDirectOrder: Boolean(checked) });
+                      }}
+                    />
                   </div>
-                  <Switch
-                    checked={siteSettings.maintenanceMode}
-                    onCheckedChange={(checked) => setSiteSettings({...siteSettings, maintenanceMode: checked})}
-                  />
-                </div>
-              </CardContent>
-            </Card>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Maintenance Mode</Label>
+                      <p className="text-sm text-gray-500 text-red-600">⚠️ Will disable the site for visitors</p>
+                    </div>
+                    <Switch
+                      checked={siteSettings.maintenanceMode}
+                      onCheckedChange={(checked) => setSiteSettings({...siteSettings, maintenanceMode: checked})}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
           </TabsContent>
 
           {/* Products Management Tab */}
@@ -438,28 +473,7 @@ const AdminDashboard: React.FC = () => {
             </Card>
           </TabsContent>
 
-          {/* Runtime Settings Tab */}
-          <TabsContent value="settings" className="space-y-6">
-            <h2 className="text-2xl font-bold">Runtime Settings</h2>
-            <Card>
-              <CardHeader>
-                <CardTitle>WhatsApp Order Flow</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Label>Open WhatsApp directly (skip form)</Label>
-                  <Switch
-                    checked={whatsappDirectOrder}
-                    onCheckedChange={(checked) => {
-                      setWhatsappDirectOrder(checked as boolean);
-                      saveSettings({ whatsappDirectOrder: checked as boolean });
-                    }}
-                  />
-                </div>
-                <p className="text-sm text-muted-foreground">This setting saves to your browser (localStorage) and applies immediately on this device.</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
+          
 
           {/* Pages Management Tab */}
           <TabsContent value="pages" className="space-y-6">

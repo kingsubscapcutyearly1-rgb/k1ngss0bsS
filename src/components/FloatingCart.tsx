@@ -5,12 +5,18 @@ import { Badge } from '@/components/ui/badge';
 import { ShoppingCart, X, Trash2, Plus, Minus } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useCurrency } from '@/context/CurrencyContext';
+import { useSettings } from '@/context/SettingsContext';
 import WhatsAppButton from './WhatsAppButton';
 
 const FloatingCart: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { cart, removeFromCart, updateQuantity, getTotalItems, getTotalPrice, clearCart } = useCart();
   const { formatPrice } = useCurrency();
+  const { settings } = useSettings();
+
+  if (!settings.enableFloatingCart) {
+    return null;
+  }
 
   const generateWhatsAppMessage = () => {
     const orderDate = new Date().toLocaleDateString();
@@ -73,11 +79,12 @@ const FloatingCart: React.FC = () => {
     <>
       {/* Floating Cart Button */}
       {!isOpen && getTotalItems() > 0 && (
-        <div className="fixed bottom-6 right-6 z-40 sm:z-50">
+        <div className="fixed bottom-5 right-5 z-40 sm:z-50">
           <Button
             onClick={() => setIsOpen(true)}
-            className="bg-primary hover:bg-primary/90 text-white rounded-full p-4 shadow-xl sm:shadow-2xl hover:shadow-3xl transition-all transform hover:scale-105"
-            size="lg"
+            className="bg-primary hover:bg-primary/90 text-white rounded-full p-3 shadow-lg sm:shadow-xl hover:shadow-2xl transition-all"
+            size="icon"
+            aria-label="Open cart"
           >
             <ShoppingCart className="w-6 h-6" />
             <Badge className="absolute -top-2 -right-2 bg-red-500 text-white min-w-[1.5rem] h-6 rounded-full flex items-center justify-center p-0 text-xs font-bold">
@@ -89,8 +96,8 @@ const FloatingCart: React.FC = () => {
 
       {/* Cart Modal */}
       {isOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-hidden">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-3 sm:p-4">
+          <Card className="w-full rounded-t-2xl sm:rounded-2xl max-w-[min(24rem,90vw)] max-h-[85vh] overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
               <CardTitle className="text-xl font-bold flex items-center">
                 <ShoppingCart className="w-5 h-5 mr-2" />

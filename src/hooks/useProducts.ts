@@ -1,14 +1,14 @@
-import { useQuery } from '@tanstack/react-query';
-import { products } from '@/data/products';
+﻿import { useProductsContext } from '@/context/ProductsContext';
+import { useMemo } from 'react';
 
 export const useProducts = () => {
-  return useQuery({
-    queryKey: ['products'],
-    queryFn: async () => {
-      // Simulate API call - in real app this would fetch from your backend
-      return new Promise((resolve) => {
-        setTimeout(() => resolve(products), 100);
-      });
-    },
-  });
+  const { products } = useProductsContext();
+
+  const result = useMemo(() => products, [products]);
+
+  return {
+    data: result,
+    isLoading: false,
+    error: null,
+  } as const;
 };

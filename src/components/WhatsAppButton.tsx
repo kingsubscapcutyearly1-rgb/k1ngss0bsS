@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { MessageCircle } from 'lucide-react';
+import { useSettings } from '@/context/SettingsContext';
 
 interface WhatsAppButtonProps {
   message?: string;
@@ -19,7 +20,8 @@ const WhatsAppButton: React.FC<WhatsAppButtonProps> = ({
   text = 'ORDER VIA WHATSAPP',
   children
 }) => {
-  const phoneNumber = '923276847960'; // Your WhatsApp number
+  const { settings } = useSettings();
+  const phoneNumber = settings.whatsappNumber.replace(/\D/g, '') || '923276847960';
   const encodedMessage = encodeURIComponent(message);
   const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
 

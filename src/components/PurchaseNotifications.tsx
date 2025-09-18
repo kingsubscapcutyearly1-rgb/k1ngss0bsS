@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, X } from 'lucide-react';
-import { products } from '@/data/products';
+import { useSettings } from '@/context/SettingsContext';
+import { useProductsContext } from '@/context/ProductsContext';
 
 interface PurchaseNotification {
   id: string;
@@ -14,6 +15,8 @@ interface PurchaseNotification {
 }
 
 const PurchaseNotifications: React.FC = () => {
+  const { settings } = useSettings();
+  const { products } = useProductsContext();
   const [notification, setNotification] = useState<PurchaseNotification | null>(null);
 
   // Enhanced regional data
@@ -92,22 +95,24 @@ const PurchaseNotifications: React.FC = () => {
   };
 
   useEffect(() => {
-    // Show first notification after 5 seconds
+    if (!settings.enablePurchaseNotifications) {
+      setNotification(null);
+      return;
+    }
+
     const initialTimeout = setTimeout(showNotification, 5000);
-    
-    // Then show every 1-2 minutes randomly
     const interval = setInterval(() => {
-      const randomDelay = Math.random() * (120000 - 60000) + 60000; // 1-2 minutes
+      const randomDelay = Math.random() * (120000 - 60000) + 60000;
       setTimeout(showNotification, randomDelay);
-    }, 90000); // Check every 1.5 minutes
+    }, 90000);
 
     return () => {
       clearTimeout(initialTimeout);
       clearInterval(interval);
     };
-  }, []);
+  }, [settings.enablePurchaseNotifications]);
 
-  if (!notification) return null;
+  if (!settings.enablePurchaseNotifications || !notification) return null;
 
   return (
     <div className="fixed bottom-6 left-6 z-50 pointer-events-none">

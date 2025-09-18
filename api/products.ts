@@ -1,4 +1,3 @@
-
 // Simple in-memory products as fallback; in real use, connect to DB
 const products = [
   {
@@ -29,5 +28,3 @@ export default function handler(req: any, res: any) {
   res.setHeader('Allow', 'GET, POST');
   return res.status(405).json({ error: 'Method Not Allowed' });
 }
-
-

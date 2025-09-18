@@ -1,6 +1,7 @@
 
 import React from "react";
-import { products, Product } from "@/data/products";
+import { Product } from "@/data/products";
+import { useProductsContext } from "@/context/ProductsContext";
 import ProductCardSimple from "@/components/ProductCard";
 
 export default function AllProducts() {

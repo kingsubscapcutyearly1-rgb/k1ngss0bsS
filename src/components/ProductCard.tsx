@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useCurrency } from "@/context/CurrencyContext";
 import { useCart } from "@/context/CartContext";
+import { useSettings } from '@/context/SettingsContext';
 import { getProductImage, getStockLabel, isProductInStock } from "@/data/products";
 
 /* ---------- Helper Functions & Hooks ---------- */
@@ -96,35 +97,42 @@ type AnyProduct = {
   stock?: boolean | number | "unlimited";
 };
 
-import { siteConfig } from '@/data/site-config';
-
-// Read runtime setting from localStorage if present
-const getRuntimeWhatsappDirect = () => {
-  try {
-    const s = JSON.parse(localStorage.getItem('ks_settings_v1') || '{}');
-    if (typeof s.whatsappDirectOrder === 'boolean') return s.whatsappDirectOrder;
-  } catch {}
-  return siteConfig.whatsappDirectOrder;
+type WhatsAppOrderForm = {
+  name: string;
+  email: string;
+  phone: string;
+  city: string;
 };
-const WHATSAPP_NUMBER = siteConfig.whatsappNumber;
+
+interface WhatsAppOrderPopupProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  product: AnyProduct;
+  price: number;
+  onOrder: (form: WhatsAppOrderForm) => void;
+  idPrefix: string;
+}
+
+import { useSettings } from '@/context/SettingsContext';
 
 // WhatsApp Order Popup Form
-function WhatsAppOrderPopup({ open, onOpenChange, product, price, onOrder }: any) {
-  const [form, setForm] = useState({ name: "", email: "", phone: "", city: "" });
+function WhatsAppOrderPopup({ open, onOpenChange, product, price, onOrder, idPrefix }: WhatsAppOrderPopupProps) {
+  const [form, setForm] = useState<WhatsAppOrderForm>({ name: '', email: '', phone: '', city: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const nameRef = useRef<HTMLInputElement>(null);
+  const fieldPrefix = idPrefix || (product?.id ?? "product");
 
   useEffect(() => {
     if (open && nameRef.current) nameRef.current.focus();
     if (!open) setForm({ name: "", email: "", phone: "", city: "" });
   }, [open]);
 
-  const handleChange = (e: any) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e: any) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
     if (!form.name.trim() || !form.phone.trim()) {
@@ -221,6 +229,11 @@ export default function ProductCardSimple({ product }: { product: AnyProduct }) 
   const [imgLoading, setImgLoading] = useState(true);
   const [waOpen, setWaOpen] = useState(false);
 
+  const { settings } = useSettings();
+  const whatsappNumberDigits = settings.whatsappNumber.replace(/\D/g, '') || '923276847960';
+  const directWhatsApp = settings.whatsappDirectOrder;
+  const showDiscountBadges = settings.showDiscountBadges;
+
   // Use utility functions for image and stock
   const imageSrc = getProductImage(product.image);
   const { current, original, savings, discount } = useProductPricing(product.price);
@@ -245,22 +258,37 @@ export default function ProductCardSimple({ product }: { product: AnyProduct }) 
   };
 
   // WhatsApp order handler
-  const handleWhatsAppOrder = (form: any) => {
+  const handleWhatsAppOrder = (form: WhatsAppOrderForm) => {
     const currentDate = new Date().toLocaleDateString();
     const limitedOffer = discount > 15 ? `*Limited Time Offer:* This ${discount}% discount is valid only until tomorrow!` : '';
-    const message = `Hello! I want to order:\n\n*Product:* ${product.name}\n*Price:* ${formatPrice(current)} ${discount > 0 ? `(Save ${discount}%)` : ''}\n${limitedOffer}\n\n*Name:* ${form.name}\n*Phone:* ${form.phone}\n${form.email ? `*Email:* ${form.email}\n` : ''}${form.city ? `*City:* ${form.city}\n` : ''}\n*Reference:* ${product.id}\n*Date:* ${currentDate}\n\nPlease send me payment details. Thank you!`;
-    const url = `https://wa.me/${WHATSAPP_NUMBER.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
-    window.open(url, "_blank");
+    const message = `Hello! I want to order:
+
+*Product:* ${product.name}
+*Price:* ${formatPrice(current)} ${discount > 0 ? `(Save ${discount}%)` : ''}
+${limitedOffer}
+
+*Name:* ${form.name}
+*Phone:* ${form.phone}
+${form.email ? `*Email:* ${form.email}
+` : ''}${form.city ? `*City:* ${form.city}
+` : ''}
+*Reference:* ${product.id}
+*Date:* ${currentDate}
+
+Please send me payment details. Thank you!`;
+    const url = `https://wa.me/${whatsappNumberDigits}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
   };
 
   return (
     <>
       <WhatsAppOrderPopup
-        open={getRuntimeWhatsappDirect() ? false : waOpen}
+        open={!directWhatsApp && waOpen}
         onOpenChange={setWaOpen}
         product={product}
         price={current}
         onOrder={handleWhatsAppOrder}
+        idPrefix={product.id}
       />
       <Card className="group h-full flex flex-col border bg-card text-card-foreground shadow-sm transition-all duration-300 hover:shadow-lg">
         <CardContent className="p-4 flex flex-col flex-1">
@@ -347,7 +375,7 @@ export default function ProductCardSimple({ product }: { product: AnyProduct }) 
 
         {/* Pricing - improved for dark mode */}
         <div className="mt-auto mb-4 rounded-lg p-3 border border-blue-100 relative bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900 dark:to-indigo-900 dark:border-blue-900">
-          {discount > 0 && (
+          {showDiscountBadges && discount > 0 && (
             <div className="absolute -top-2 -right-2">
               <span className="px-2 py-1 text-xs font-bold rounded-full bg-red-500 text-white animate-pulse">
                 {discount}% OFF
@@ -384,8 +412,7 @@ export default function ProductCardSimple({ product }: { product: AnyProduct }) 
 <Button
   className="w-full bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
   onClick={() => {
-    if (getRuntimeWhatsappDirect()) {
-      // fire direct flow with minimal info
+    if (directWhatsApp) {
       handleWhatsAppOrder({ name: 'Customer', phone: '', email: '', city: '' });
     } else {
       setWaOpen(true);
@@ -394,7 +421,11 @@ export default function ProductCardSimple({ product }: { product: AnyProduct }) 
   disabled={!isInStock}
   aria-label={`Order ${product.name} via WhatsApp`}
   tabIndex={0}
-  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setWaOpen(true); }}
+  onKeyDown={(e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (!directWhatsApp && (e.key === 'Enter' || e.key === ' ')) {
+      setWaOpen(true);
+    }
+  }}
 >
   <Zap className="w-4 h-4 mr-1" />
   <span className="font-bold">Order via WhatsApp</span>
@@ -415,3 +446,4 @@ export default function ProductCardSimple({ product }: { product: AnyProduct }) 
     </Card>
   </>);
 }
+

@@ -27,13 +27,14 @@ import AnalyticsDashboard from '@/components/AnalyticsDashboard';
 
 // Import the product types and data
 import { Product, StockType } from '@/data/products';
+import { useProductsContext } from '@/context/ProductsContext';
 
 interface DashboardProps {
   onLogout: () => void;
 }
 
 const ProductDashboard: React.FC<DashboardProps> = ({ onLogout }) => {
-  const [products, setProducts] = useState<Product[]>([]);
+  const { products: allProducts, setProducts: setProductsContext } = useProductsContext();
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -41,20 +42,14 @@ const ProductDashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [activeTab, setActiveTab] = useState('products');
 
-  // Load products data
-  useEffect(() => {
-    loadProducts();
-  }, []);
-
   // Filter and sort products
   useEffect(() => {
-    let filtered = [...products];
+    let filtered = [...allProducts];
 
     // Apply search filter
     if (searchTerm) {
@@ -112,135 +107,19 @@ const ProductDashboard: React.FC<DashboardProps> = ({ onLogout }) => {
     });
 
     setFilteredProducts(filtered);
-  }, [products, searchTerm, categoryFilter, stockFilter, sortBy, sortOrder]);
-
-  const loadProducts = async () => {
-    try {
-      setIsLoading(true);
-      // Load from local data
-      const { products: localProducts } = await import('@/data/products');
-      setProducts(localProducts);
-    } catch (error) {
-      console.error('Error loading products:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [allProducts, searchTerm, categoryFilter, stockFilter, sortBy, sortOrder]);
 
   const saveProducts = async () => {
     try {
       setSaveStatus('saving');
-      
-      // Generate TypeScript code for products.ts file
-      const productsCode = generateProductsFile(products);
-      
-      // In a real implementation, this would save to your server/file
-      // For demo purposes, we'll download the file
-      downloadProductsFile(productsCode);
-      
+      setProductsContext([...allProducts]);
       setSaveStatus('success');
-      setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (error) {
       console.error('Error saving products:', error);
       setSaveStatus('error');
-      setTimeout(() => setSaveStatus('idle'), 3000);
+    } finally {
+      setTimeout(() => setSaveStatus('idle'), 2000);
     }
-  };
-
-  const generateProductsFile = (productsData: Product[]) => {
-    const fileContent = `// src/data/products.ts
-
-export interface PlanDuration {
-  duration: string;
-  price: number;
-  original?: number;
-}
-
-export interface PlanOption {
-  type: string;
-  description?: string;
-  durations: PlanDuration[];
-}
-
-export type StockType = boolean | number | "unlimited";
-
-export interface Product {
-  id: string;
-  name: string;
-  category: string;
-  image: string;
-  images?: string[];
-  features: string[];
-  price: {
-    monthly?: number;
-    yearly?: number;
-    original?: number;
-  };
-  plans?: PlanOption[];
-  description?: string;
-  longDescription?: string;
-  badge?: string;
-  stock: StockType;
-  stockHistory?: Array<{ date: string; stock: StockType; previousStock?: StockType; reason?: string }>;
-  rating?: number;
-  popular?: boolean;
-  tags?: string[];
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-export function getProductImage(image?: string): string {
-  return image && image.length > 5 ? image : "/images/DefaultImage.jpg";
-}
-
-export function getStockLabel(stock: StockType): string {
-  if (stock === false || stock === 0) return "Out of Stock";
-  if (stock === true || stock === "unlimited") return "In Stock";
-  if (typeof stock === "number" && stock > 0) return \`\${stock} left\`;
-  return "Unknown";
-}
-
-export function isProductInStock(stock: StockType): boolean {
-  if (stock === false || stock === 0) return false;
-  if (stock === true || stock === "unlimited") return true;
-  if (typeof stock === "number" && stock > 0) return true;
-  return false;
-}
-
-export const products: Product[] = ${JSON.stringify(productsData, null, 2)};
-
-export const categories = [
-    { id: "all", name: "All", count: products.length },
-    { id: "entertainment", name: "Entertainment", count: products.filter(p => p.category.includes("Entertainment")).length },
-    { id: "streaming", name: "Streaming", count: products.filter(p => p.category.includes("Streaming")).length },
-    { id: "music", name: "Music", count: products.filter(p => p.category.includes("Music")).length },
-    { id: "gaming", name: "Gaming", count: products.filter(p => p.category.includes("Gaming")).length },
-    { id: "ai-tools", name: "AI Tools", count: products.filter(p => p.category.includes("AI Tools")).length },
-    { id: "seo-tools", name: "SEO Tools", count: products.filter(p => p.category.includes("SEO Tools")).length },
-    { id: "study-tools", name: "Study Tools", count: products.filter(p => p.category.includes("Study Tools")).length },
-    { id: "writer-tools", name: "Writer Tools", count: products.filter(p => p.category.includes("Writer Tools")).length },
-    { id: "social-media-services", name: "Social Media", count: products.filter(p => p.category.includes("Social Media")).length },
-    { id: "vpn", name: "VPN", count: products.filter(p => p.category.includes("VPN")).length },
-    { id: "software", name: "Software", count: products.filter(p => p.category.includes("Software")).length },
-    { id: "productivity", name: "Productivity", count: products.filter(p => p.category.includes("Productivity")).length },
-    { id: "courses", name: "Courses", count: products.filter(p => p.category.includes("Courses")).length },
-    { id: "graphics-creative", name: "Graphics/Creative", count: products.filter(p => p.category.includes("Graphics/Creative")).length },
-    { id: "business", name: "Business", count: products.filter(p => p.category.includes("Business")).length },
-    { id: "services", name: "Services", count: products.filter(p => p.category.includes("Services")).length },
-];`;
-    return fileContent;
-  };
-
-  const downloadProductsFile = (content: string) => {
-    const blob = new Blob([content], { type: 'text/typescript' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'products.ts';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   };
 
   const getStockStatus = (stock: StockType) => {
@@ -252,7 +131,7 @@ export const categories = [
 
   const getUniqueCategories = () => {
     const categories = new Set<string>();
-    products.forEach(product => {
+    allProducts.forEach(product => {
       product.category.split(',').forEach(cat => {
         categories.add(cat.trim());
       });
@@ -276,34 +155,43 @@ export const categories = [
     }
   };
 
-  const handleBulkAction = (action: string) => {
+  const handleBulkAction = (action: 'in-stock' | 'out-stock' | 'delete') => {
     if (selectedProducts.length === 0) return;
 
     switch (action) {
-      case 'delete':
+      case 'delete': {
         if (window.confirm(`Delete ${selectedProducts.length} selected products?`)) {
-          setProducts(prev => prev.filter(p => !selectedProducts.includes(p.id)));
+          const next = allProducts.filter((product) => !selectedProducts.includes(product.id));
+          setProductsContext(next);
           setSelectedProducts([]);
         }
         break;
-      case 'in-stock':
-        setProducts(prev => prev.map(p => 
-          selectedProducts.includes(p.id) ? { ...p, stock: true } : p
-        ));
+      }
+      case 'in-stock': {
+        const next = allProducts.map((product) =>
+          selectedProducts.includes(product.id) ? { ...product, stock: product.stock || true } : product
+        );
+        setProductsContext(next);
         setSelectedProducts([]);
         break;
-      case 'out-stock':
-        setProducts(prev => prev.map(p => 
-          selectedProducts.includes(p.id) ? { ...p, stock: false } : p
-        ));
+      }
+      case 'out-stock': {
+        const next = allProducts.map((product) =>
+          selectedProducts.includes(product.id) ? { ...product, stock: false } : product
+        );
+        setProductsContext(next);
         setSelectedProducts([]);
+        break;
+      }
+      default:
         break;
     }
   };
 
   const deleteProduct = (productId: string) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
-      setProducts(prev => prev.filter(p => p.id !== productId));
+      const next = allProducts.filter((product) => product.id !== productId);
+      setProductsContext(next);
     }
   };
 
@@ -315,24 +203,25 @@ export const categories = [
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    setProducts(prev => [...prev, newProduct]);
+    setProductsContext([...allProducts, newProduct]);
   };
 
   const handleSaveProduct = (product: Product) => {
     if (editingProduct) {
-      setProducts(prev => prev.map(p => p.id === product.id ? product : p));
+      const next = allProducts.map((item) => (item.id === product.id ? product : item));
+      setProductsContext(next);
     } else {
-      setProducts(prev => [...prev, product]);
+      setProductsContext([...allProducts, product]);
     }
     setEditingProduct(null);
     setShowCreateForm(false);
   };
 
   const stats = {
-    total: products.length,
-    inStock: products.filter(p => p.stock !== false && p.stock !== 0).length,
-    outOfStock: products.filter(p => p.stock === false || p.stock === 0).length,
-    popular: products.filter(p => p.popular).length,
+    total: allProducts.length,
+    inStock: allProducts.filter(p => p.stock !== false && p.stock !== 0).length,
+    outOfStock: allProducts.filter(p => p.stock === false || p.stock === 0).length,
+    popular: allProducts.filter(p => p.popular).length,
     categories: getUniqueCategories().length,
   };
 
@@ -355,7 +244,7 @@ export const categories = [
                 className="bg-green-600 hover:bg-green-700"
               >
                 <Save className="w-4 h-4 mr-2" />
-                {saveStatus === 'saving' ? 'Saving...' : 'Save to Server'}
+                {saveStatus === 'saving' ? 'Saving...' : 'Save Changes'}
               </Button>
               <Button variant="outline" onClick={onLogout}>
                 <LogOut className="w-4 h-4 mr-2" />
@@ -372,7 +261,7 @@ export const categories = [
             {saveStatus === 'success' && <CheckCircle className="w-4 h-4 text-green-600" />}
             {saveStatus === 'error' && <XCircle className="w-4 h-4 text-red-600" />}
             <AlertDescription>
-              {saveStatus === 'success' && 'Products file downloaded successfully! Replace your original products.ts file with the downloaded version.'}
+              {saveStatus === 'success' && 'Products saved locally. The catalog has been updated immediately.'}
               {saveStatus === 'error' && 'Failed to save products. Please try again.'}
             </AlertDescription>
           </Alert>
@@ -546,108 +435,102 @@ export const categories = [
                   </div>
                 )}
 
-                {isLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="text-gray-500">Loading products...</div>
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-12">
-                          <Checkbox
-                            checked={selectedProducts.length === filteredProducts.length && filteredProducts.length > 0}
-                            onCheckedChange={handleSelectAll}
-                          />
-                        </TableHead>
-                        <TableHead>Product</TableHead>
-                        <TableHead>Category</TableHead>
-                        <TableHead>Price</TableHead>
-                        <TableHead>Stock</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredProducts.map((product) => {
-                        const stockStatus = getStockStatus(product.stock);
-                        return (
-                          <TableRow key={product.id}>
-                            <TableCell>
-                              <Checkbox
-                                checked={selectedProducts.includes(product.id)}
-                                onCheckedChange={(checked) => handleSelectProduct(product.id, checked as boolean)}
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">
+                        <Checkbox
+                          checked={selectedProducts.length === filteredProducts.length && filteredProducts.length > 0}
+                          onCheckedChange={handleSelectAll}
+                        />
+                      </TableHead>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Price</TableHead>
+                      <TableHead>Stock</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredProducts.map((product) => {
+                      const stockStatus = getStockStatus(product.stock);
+                      return (
+                        <TableRow key={product.id}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedProducts.includes(product.id)}
+                              onCheckedChange={(checked) => handleSelectProduct(product.id, checked as boolean)}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-3">
+                              <img
+                                src={product.image || '/images/DefaultImage.jpg'}
+                                alt={product.name}
+                                className="w-10 h-10 rounded-lg object-cover"
+                                loading="lazy"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.src = '/images/DefaultImage.jpg';
+                                }}
                               />
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center space-x-3">
-                                <img
-                                  src={product.image || '/images/DefaultImage.jpg'}
-                                  alt={product.name}
-                                  className="w-10 h-10 rounded-lg object-cover"
-                                  loading="lazy"
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.src = '/images/DefaultImage.jpg';
-                                  }}
-                                />
-                                <div>
-                                  <div className="font-medium">{product.name}</div>
-                                  <div className="text-sm text-gray-500">{product.id}</div>
-                                </div>
+                              <div>
+                                <div className="font-medium">{product.name}</div>
+                                <div className="text-sm text-gray-500">{product.id}</div>
                               </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{product.category.split(',')[0].trim()}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="text-sm">
-                                {product.price.monthly && `PKR ${product.price.monthly}/mo`}
-                                {product.price.yearly && `PKR ${product.price.yearly}/yr`}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={stockStatus.color}>{stockStatus.label}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-1">
-                                {product.popular && <Badge className="bg-yellow-100 text-yellow-800">Popular</Badge>}
-                                {product.badge && <Badge variant="secondary">{product.badge}</Badge>}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => setEditingProduct(product)}
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => duplicateProduct(product)}
-                                >
-                                  Copy
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() => deleteProduct(product.id)}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{product.category.split(',')[0].trim()}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              {product.price.monthly && `PKR ${product.price.monthly}/mo`}
+                              {product.price.yearly && `PKR ${product.price.yearly}/yr`}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={stockStatus.color}>{stockStatus.label}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              {product.popular && <Badge className="bg-yellow-100 text-yellow-800">Popular</Badge>}
+                              {product.badge && <Badge variant="secondary">{product.badge}</Badge>}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setEditingProduct(product)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => duplicateProduct(product)}
+                              >
+                                Copy
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => deleteProduct(product.id)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
 
-                {filteredProducts.length === 0 && !isLoading && (
+                {filteredProducts.length === 0 && (
                   <div className="text-center py-12">
                     <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>

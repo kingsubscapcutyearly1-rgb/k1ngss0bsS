@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { ShoppingCart, X, Plus, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,37 +11,33 @@ import {
 } from '@/components/ui/sheet';
 import { useCart } from '@/context/CartContext';
 import { useCurrency } from '@/context/CurrencyContext';
-
-const WHATSAPP_NUMBER = '+923276847960';
+import { useSettings } from '@/context/SettingsContext';
 
 export default function CartIcon() {
   const { cart, removeFromCart, updateQuantity, getTotalItems, getTotalPrice, clearCart } = useCart();
   const { convertPrice, currency } = useCurrency();
+  const { settings } = useSettings();
   const [isOpen, setIsOpen] = useState(false);
 
   const handleWhatsAppOrder = () => {
     if (cart.length === 0) return;
 
-    const orderDetails = cart.map(item => 
-      `📦 ${item.name} (${item.category}) x${item.quantity} - ${currency} ${convertPrice(item.currentPrice * item.quantity).toFixed(2)}`
-    ).join('\n\n');
+    const orderDetails = cart
+      .map((item) => {
+        const lineTotal = convertPrice(item.currentPrice * item.quantity).toFixed(2);
+        return `- ${item.name} (${item.category}) x${item.quantity} - ${currency} ${lineTotal}`;
+      })
+      .join('\n\n');
 
-    const totalPrice = convertPrice(getTotalPrice());
-    const totalSavings = cart.reduce((total, item) => 
-      total + ((item.originalPrice - item.currentPrice) * item.quantity), 0
-    );
+    const totalPrice = convertPrice(getTotalPrice()).toFixed(2);
+    const totalSavings = convertPrice(
+      cart.reduce((total, item) => total + (item.originalPrice - item.currentPrice) * item.quantity, 0),
+    ).toFixed(2);
 
-    const message = `🛒 *BULK ORDER REQUEST* 🛒
+    const message = `BULK ORDER REQUEST\n\n${orderDetails}\n\nTotal Amount: ${currency} ${totalPrice}\nTotal Savings: ${currency} ${totalSavings}\nItems Count: ${getTotalItems()}\n\nPlease confirm my bulk order. Thank you!`;
 
-${orderDetails}
-
-💰 *Total Amount:* ${currency} ${totalPrice.toFixed(2)}
-💵 *Total Savings:* ${currency} ${convertPrice(totalSavings).toFixed(2)}
-📱 *Items Count:* ${getTotalItems()}
-
-Please confirm my bulk order. Thank you! 🙏`;
-
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`);
+    const number = settings.whatsappNumber.replace(/\D/g, '') || '923276847960';
+    window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`);
     setIsOpen(false);
   };
 
@@ -61,7 +57,7 @@ Please confirm my bulk order. Thank you! 🙏`;
         <SheetHeader>
           <SheetTitle>Shopping Cart ({getTotalItems()})</SheetTitle>
         </SheetHeader>
-        
+
         <div className="mt-6 space-y-4">
           {cart.length === 0 ? (
             <div className="text-center py-8">
@@ -72,8 +68,8 @@ Please confirm my bulk order. Thank you! 🙏`;
             <>
               {cart.map((item) => (
                 <div key={item.id} className="flex items-center space-x-3 p-3 border rounded-lg dark:border-gray-600">
-                  <img 
-                    src={item.image || '/api/placeholder/64/64'} 
+                  <img
+                    src={item.image || '/api/placeholder/64/64'}
                     alt={item.name}
                     className="w-16 h-16 object-contain bg-gray-50 dark:bg-gray-700 rounded"
                   />
@@ -84,33 +80,21 @@ Please confirm my bulk order. Thank you! 🙏`;
                       {currency} {convertPrice(item.currentPrice).toFixed(2)}
                     </p>
                     <div className="flex items-center space-x-2 mt-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                      >
+                      <Button size="sm" variant="outline" onClick={() => updateQuantity(item.id, item.quantity - 1)}>
                         <Minus className="w-3 h-3" />
                       </Button>
                       <span className="w-8 text-center text-sm">{item.quantity}</span>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                      >
+                      <Button size="sm" variant="outline" onClick={() => updateQuantity(item.id, item.quantity + 1)}>
                         <Plus className="w-3 h-3" />
                       </Button>
                     </div>
                   </div>
-                  <Button 
-                    size="sm" 
-                    variant="ghost"
-                    onClick={() => removeFromCart(item.id)}
-                  >
+                  <Button size="sm" variant="ghost" onClick={() => removeFromCart(item.id)}>
                     <X className="w-4 h-4" />
                   </Button>
                 </div>
               ))}
-              
+
               <div className="border-t pt-4 dark:border-gray-600">
                 <div className="flex justify-between items-center mb-4">
                   <span className="font-semibold dark:text-white">Total:</span>
@@ -118,19 +102,12 @@ Please confirm my bulk order. Thank you! 🙏`;
                     {currency} {convertPrice(getTotalPrice()).toFixed(2)}
                   </span>
                 </div>
-                
+
                 <div className="space-y-2">
-                  <Button 
-                    className="w-full bg-green-500 hover:bg-green-600"
-                    onClick={handleWhatsAppOrder}
-                  >
-                    📱 ORDER ALL VIA WHATSAPP
+                  <Button className="w-full bg-green-500 hover:bg-green-600" onClick={handleWhatsAppOrder}>
+                    ORDER ALL VIA WHATSAPP
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={clearCart}
-                  >
+                  <Button variant="outline" className="w-full" onClick={clearCart}>
                     Clear Cart
                   </Button>
                 </div>

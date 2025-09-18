@@ -7,7 +7,6 @@ import { Menu, Crown, ShoppingCart } from 'lucide-react';
 import CurrencySelector from './CurrencySelector';
 import ThemeToggle from './ThemeToggle';
 import { useCart } from '@/context/CartContext';
-import WhatsAppButton from './WhatsAppButton';
 import CartIcon from './CartIcon';
 
 const Header: React.FC = () => {
@@ -29,10 +28,10 @@ const Header: React.FC = () => {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b-2 border-gray-200/50 dark:border-gray-700/50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl shadow-lg">
-      <div className="container mx-auto flex h-18 items-center justify-between px-4">
-        <Link to="/" className="flex items-center space-x-2 group">
-          <Crown className="h-8 w-8 md:h-10 md:w-10 text-primary group-hover:scale-110 transition-transform duration-200" />
-          <span className="text-xl md:text-2xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 bg-clip-text text-transparent group-hover:from-purple-600 group-hover:to-blue-600 transition-all duration-300">
+      <div className="container mx-auto flex h-16 items-center justify-between px-4 gap-2">
+        <Link to="/" className="flex items-center space-x-2 group min-w-0">
+          <Crown className="h-8 w-8 md:h-10 md:w-10 text-primary group-hover:scale-110 transition-transform duration-200 flex-shrink-0" />
+          <span className="text-lg sm:text-xl md:text-2xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 bg-clip-text text-transparent group-hover:from-purple-600 group-hover:to-blue-600 transition-all duration-300 truncate max-w-[140px] sm:max-w-xs">
             King Subscription
           </span>
         </Link>
@@ -42,7 +41,7 @@ const Header: React.FC = () => {
             <Link
               key={item.name}
               to={item.href}
-              className={`text-sm font-medium transition-colors hover:text-primary ${
+              className={`text-sm font-medium transition-colors hover:text-primary whitespace-nowrap ${
                 isActive(item.href)
                   ? 'text-primary border-b-2 border-primary'
                   : 'text-muted-foreground'
@@ -53,14 +52,14 @@ const Header: React.FC = () => {
           ))}
         </nav>
 
-        <div className="flex items-center space-x-2 md:space-x-4 overflow-hidden">
-          <div className="hidden sm:block"><CurrencySelector /></div>
-          <div className="hidden sm:block"><ThemeToggle /></div>
+        <div className="flex items-center space-x-2 md:space-x-4">
+          <div className="hidden sm:flex items-center space-x-2">
+            <CurrencySelector />
+            <ThemeToggle />
+          </div>
           <div className="shrink-0">
             <CartIcon />
           </div>
-          
-
 
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
             <SheetTrigger asChild className="md:hidden shrink-0">
@@ -82,8 +81,9 @@ const Header: React.FC = () => {
                     {item.name}
                   </Link>
                 ))}
-                <div className="sm:hidden">
-                  <CartIcon />
+                <div className="sm:hidden flex items-center space-x-2">
+                  <CurrencySelector />
+                  <ThemeToggle />
                 </div>
               </div>
             </SheetContent>

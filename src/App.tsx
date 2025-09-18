@@ -1,8 +1,10 @@
-import { Toaster } from '@/components/ui/sonner';
+﻿import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { CurrencyProvider } from '@/context/CurrencyContext';
+import { SettingsProvider } from '@/context/SettingsContext';
+import { ProductsProvider } from '@/context/ProductsContext';
 import { CartProvider } from '@/context/CartContext';
 import { CompareProvider } from '@/context/CompareContext';
 import Header from './components/Header';
@@ -39,54 +41,58 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <CurrencyProvider>
-      <CartProvider>
-        <CompareProvider>
-          <TooltipProvider>
-            <Toaster />
-            <BrowserRouter>
-              <ScrollToTop />
-              <div className="min-h-screen flex flex-col">
-                <Header />
-                <main className="flex-1" id="main">
-                  <Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Loading…</div>}>
-                  <Routes>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/tools" element={<Tools />} />
-                    <Route path="/about" element={<About />} />
-                    <Route path="/why-us" element={<WhyUs />} />
-                    <Route path="/compare" element={<Compare />} />
-                    <Route path="/testimonials" element={<Testimonials />} />
-                    <Route path="/products" element={<AllProducts />} />
-                    <Route path="/product/:id" element={<ProductDetail />} />
-                    
-                    {/* Additional routes */}
-                    <Route path="/blog" element={<Blog />} />
-                    <Route path="/contact" element={<Contact />} />
-                    <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-                    <Route path="/terms-conditions" element={<TermsConditions />} />
-                    <Route path="/refund-policy" element={<RefundPolicy />} />
-                    <Route path="/dmca" element={<DMCA />} />
-                    <Route path="/admin" element={<Admin />} />
-                    <Route path="/admin/login" element={<AdminLogin />} />
-                    <Route path="/admin/dashboard" element={<AdminDashboard />} />
-                    <Route path="/product-controller" element={<ProductController />} />
-                    <Route path="/productcontroller" element={<ProductController />} />
-                    <Route path="/productdashboard" element={<ProductDashboard onLogout={() => {}} />} />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                  </Suspense>
-                </main>
-                <Footer />
-                <PurchaseNotifications />
-                <FloatingElements />
-                <FloatingCart />
-              </div>
-            </BrowserRouter>
-          </TooltipProvider>
-        </CompareProvider>
-      </CartProvider>
-    </CurrencyProvider>
+    <ProductsProvider>
+      <SettingsProvider>
+        <CurrencyProvider>
+          <CartProvider>
+            <CompareProvider>
+              <TooltipProvider>
+                <Toaster />
+                <BrowserRouter>
+                  <ScrollToTop />
+                  <div className="min-h-screen flex flex-col">
+                    <Header />
+                    <main className="flex-1" id="main">
+                      <Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Loading...</div>}>
+                        <Routes>
+                          <Route path="/" element={<Home />} />
+                          <Route path="/tools" element={<Tools />} />
+                          <Route path="/about" element={<About />} />
+                          <Route path="/why-us" element={<WhyUs />} />
+                          <Route path="/compare" element={<Compare />} />
+                          <Route path="/testimonials" element={<Testimonials />} />
+                          <Route path="/products" element={<AllProducts />} />
+                          <Route path="/product/:id" element={<ProductDetail />} />
+
+                          {/* Additional routes */}
+                          <Route path="/blog" element={<Blog />} />
+                          <Route path="/contact" element={<Contact />} />
+                          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                          <Route path="/terms-conditions" element={<TermsConditions />} />
+                          <Route path="/refund-policy" element={<RefundPolicy />} />
+                          <Route path="/dmca" element={<DMCA />} />
+                          <Route path="/admin" element={<Admin />} />
+                          <Route path="/admin/login" element={<AdminLogin />} />
+                          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                          <Route path="/product-controller" element={<ProductController />} />
+                          <Route path="/productcontroller" element={<ProductController />} />
+                          <Route path="/productdashboard" element={<ProductDashboard onLogout={() => {}} />} />
+                          <Route path="*" element={<NotFound />} />
+                        </Routes>
+                      </Suspense>
+                    </main>
+                    <Footer />
+                    <PurchaseNotifications />
+                    <FloatingElements />
+                    <FloatingCart />
+                  </div>
+                </BrowserRouter>
+              </TooltipProvider>
+            </CompareProvider>
+          </CartProvider>
+        </CurrencyProvider>
+      </SettingsProvider>
+    </ProductsProvider>
   </QueryClientProvider>
 );
 

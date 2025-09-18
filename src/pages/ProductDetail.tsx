@@ -1,5 +1,5 @@
-import { siteConfig } from '@/data/site-config';
-import React, { useState, useEffect, useCallback } from "react";
+import { useSettings } from '@/context/SettingsContext';
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,25 +9,34 @@ import { Star, CheckCircle, ArrowLeft, Shield, Clock, Award, Tag, CreditCard, Im
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCurrency } from "@/context/CurrencyContext";
 import { useCart } from "@/context/CartContext";
+import { useProductsContext } from "@/context/ProductsContext";
 import { useToast } from "@/components/ui/use-toast";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
-import { products, Product } from "@/data/products";
+import { Product } from "@/data/products";
 
 // Error Boundary Component
-class ErrorBoundary extends React.Component<
-  { children: React.ReactNode; fallback?: React.ReactNode; onRetry?: () => void },
-  { hasError: boolean; error?: Error }
-> {
-  constructor(props: any) {
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+  onRetry?: () => void;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false };
   }
-  static getDerivedStateFromError(error: any) {
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
   }
-  componentDidCatch(error: any, info: any) {
-    console.error("Error caught by ErrorBoundary:", error, info);
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('Error caught by ErrorBoundary:', error, info);
   }
   render() {
     if (this.state.hasError) {
@@ -58,6 +67,51 @@ type ProductWithRating = Product & {
   reviewCount?: number;
 };
 
+type GtagFunction = (...args: unknown[]) => void;
+
+const getGtag = (): GtagFunction | undefined => {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+  const maybeWindow = window as Window & { gtag?: GtagFunction };
+  return typeof maybeWindow.gtag === 'function' ? maybeWindow.gtag : undefined;
+};
+
+type ActivityItem = {
+  name: string;
+  city: string;
+  time: string;
+};
+
+const LivePurchaseTicker: React.FC<{ items: ActivityItem[] }> = ({ items }) => {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (items.length === 0) return;
+    const interval = setInterval(() => {
+      setIndex((prev) => (prev + 1) % items.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [items]);
+
+  if (items.length === 0) {
+    return null;
+  }
+
+  const activity = items[index];
+
+  return (
+    <div className="mt-3 p-3 bg-gray-50 dark:bg-zinc-900 border border-gray-100 dark:border-zinc-700 rounded-lg mb-4 transition-colors w-full overflow-x-auto">
+      <div className="flex items-center text-xs sm:text-sm text-gray-700 dark:text-gray-200 whitespace-nowrap">
+        <span className="animate-pulse w-2 h-2 bg-green-500 rounded-full mr-2" />
+        <span>
+          {activity.name} from {activity.city} just purchased this product {activity.time}
+        </span>
+      </div>
+    </div>
+  );
+};
+
 // Interfaces
 interface Plan {
   type: string;
@@ -83,11 +137,11 @@ interface CartItem {
 }
 
 // API Service
-const fetchProduct = async (id: string): Promise<ProductWithRating | null> => {
+const fetchProduct = async (id: string, allProducts: ProductWithRating[]): Promise<ProductWithRating | null> => {
   try {
     return new Promise((resolve) => {
       setTimeout(() => {
-        const product = products.find(p => p.id === id);
+        const product = allProducts.find(p => p.id === id);
         resolve(product || null);
       }, 500);
     });
@@ -110,7 +164,7 @@ const subscribeToStockAlert = async (email: string, productId: string): Promise<
 };
 
 // Custom Hook for Product Data
-const useProductData = (id: string | undefined) => {
+const useProductData = (id: string | undefined, allProducts: ProductWithRating[]) => {
   const [params] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [product, setProduct] = useState<ProductWithRating | null>(null);
@@ -123,7 +177,7 @@ const useProductData = (id: string | undefined) => {
       
       setLoading(true);
       try {
-        const data = await fetchProduct(id);
+        const data = await fetchProduct(id, allProducts);
         setProduct(data);
         
         if (data?.plans?.length) {
@@ -142,7 +196,7 @@ const useProductData = (id: string | undefined) => {
     };
     
     loadProduct();
-  }, [id, params]);
+  }, [id, params, allProducts]);
   
   return { loading, product, selectedPlan, selectedDuration, setSelectedPlan, setSelectedDuration };
 };
@@ -245,36 +299,7 @@ const ProductInfo: React.FC<{
       </div>
 
       {/* Live customer activity (dynamic) */}
-      {(() => {
-        const activityList = [
-          { name: "Ahmed", city: "Karachi", time: "2 minutes ago" },
-          { name: "Sara", city: "Lahore", time: "just now" },
-          { name: "Ali", city: "Islamabad", time: "5 minutes ago" },
-          { name: "Fatima", city: "Multan", time: "1 minute ago" },
-          { name: "Usman", city: "Faisalabad", time: "3 minutes ago" },
-          { name: "Ayesha", city: "Peshawar", time: "4 minutes ago" },
-          { name: "Bilal", city: "Quetta", time: "just now" },
-          { name: "Zainab", city: "Hyderabad", time: "6 minutes ago" },
-        ];
-        const [activityIdx, setActivityIdx] = React.useState(0);
-        React.useEffect(() => {
-          const interval = setInterval(() => {
-            setActivityIdx(idx => (idx + 1) % activityList.length);
-          }, 4000);
-          return () => clearInterval(interval);
-        }, []);
-        const activity = activityList[activityIdx];
-        return (
-          <div className="mt-3 p-3 bg-gray-50 dark:bg-zinc-900 border border-gray-100 dark:border-zinc-700 rounded-lg mb-4 transition-colors w-full overflow-x-auto">
-            <div className="flex items-center text-xs sm:text-sm text-gray-700 dark:text-gray-200 whitespace-nowrap">
-              <div className="animate-pulse w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-              <span>
-                {activity.name} from {activity.city} just purchased this product {activity.time}
-              </span>
-            </div>
-          </div>
-        );
-      })()}
+      <LivePurchaseTicker items={liveActivityItems} />
 
       <p className="text-muted-foreground text-base sm:text-lg leading-relaxed break-words">
         {product.description}
@@ -932,6 +957,7 @@ const ProductDetail: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const cart = useCart();
   const currencyCtx = useCurrency();
+  const { products } = useProductsContext();
   const { toast } = useToast();
   const [heroLoaded, setHeroLoaded] = useState(false);
   const [imageErrored, setImageErrored] = useState(false);
@@ -939,9 +965,14 @@ const ProductDetail: React.FC = () => {
   const [showWhatsAppForm, setShowWhatsAppForm] = useState(false);
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
-  
+
+  const { settings } = useSettings();
+  const directWhatsApp = settings.whatsappDirectOrder;
+  const whatsappNumberDigits = settings.whatsappNumber.replace(/\D/g, '') || '923276847960';
+  const showBreadcrumbs = settings.showBreadcrumbs !== false;
+
   // Use custom hook for product data
-  const { loading, product, selectedPlan, selectedDuration, setSelectedPlan, setSelectedDuration } = useProductData(id);
+  const { loading, product, selectedPlan, selectedDuration, setSelectedPlan, setSelectedDuration } = useProductData(id, products as ProductWithRating[]);
   
   // Update URL when selection changes
   useEffect(() => {
@@ -981,19 +1012,30 @@ const ProductDetail: React.FC = () => {
   const finalSavings = Math.max(originalPrice - currentPrice, 0);
   const finalDiscount = originalPrice > 0 && currentPrice > 0 ? Math.round((finalSavings / originalPrice) * 100) : 0;
 
+  const liveActivityItems = useMemo<ActivityItem[]>(() => [
+    { name: 'Ahmed', city: 'Karachi', time: '2 minutes ago' },
+    { name: 'Sara', city: 'Lahore', time: 'just now' },
+    { name: 'Ali', city: 'Islamabad', time: '5 minutes ago' },
+    { name: 'Fatima', city: 'Multan', time: '1 minute ago' },
+    { name: 'Usman', city: 'Faisalabad', time: '3 minutes ago' },
+    { name: 'Ayesha', city: 'Peshawar', time: '4 minutes ago' },
+    { name: 'Bilal', city: 'Quetta', time: 'just now' },
+    { name: 'Zainab', city: 'Hyderabad', time: '6 minutes ago' },
+  ], []);
+
   // Analytics tracking
   useEffect(() => {
-    // Track product view
-    if (product && typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'view_item', {
+    const gtag = getGtag();
+    if (product && gtag) {
+      gtag('event', 'view_item', {
         currency: currencyCtx?.currency || 'PKR',
         value: currentPrice,
         items: [{
           item_id: product.id,
           item_name: product.name,
           price: currentPrice,
-          quantity: 1
-        }]
+          quantity: 1,
+        }],
       });
     }
   }, [product, currentPrice, currencyCtx]);
@@ -1087,31 +1129,23 @@ const ProductDetail: React.FC = () => {
       description: `${cartItem.name} (x${quantity}) has been added to your cart.`,
     });
     
-    // Track add to cart event
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'add_to_cart', {
+    const gtag = getGtag();
+    if (gtag) {
+      gtag('event', 'add_to_cart', {
         currency: currencyCtx?.currency || 'PKR',
         value: currentPrice * quantity,
         items: [{
           item_id: product.id,
           item_name: product.name,
           price: currentPrice,
-          quantity: quantity
-        }]
+          quantity,
+        }],
       });
     }
   };
   
-  const getRuntimeWhatsappDirect = () => {
-    try {
-      const s = JSON.parse(localStorage.getItem('ks_settings_v1') || '{}');
-      if (typeof s.whatsappDirectOrder === 'boolean') return s.whatsappDirectOrder;
-    } catch {}
-    return siteConfig.whatsappDirectOrder;
-  };
-
   const handleWhatsAppOrder = () => {
-    if (getRuntimeWhatsappDirect()) {
+    if (directWhatsApp) {
       // send a minimal direct message without collecting form data
       const name = 'Customer';
       const email = '';
@@ -1158,32 +1192,42 @@ const ProductDetail: React.FC = () => {
     }
 
     // Improved WhatsApp message template
-    const message =
-      `👋 *Hello King Subscriptions!*\n` +
-      `My name is *${name}*.\n` +
-      `I want to order: \n` +
-      `• _${quantityText}${product.name}_ \n` +
-      `• _Status:_ ${status}\n` +
-      `• _Plan:_ ${plan}\n` +
-      `• _Duration:_ ${duration}\n` +
-      `• _Price:_ *${price}*\n` +
-      `\nPlease share your payment accounts.\n` +
-      `*and also assist me with the order*\n` +
-      `\nMy contact details:\n` +
-      `📞 *Phone:* ${phone}\n` +
-      `✉️ *Email:* ${email}\n` +
-      `🏙️ *City:* ${city}`;
+    const messageLines = [
+      'Hello King Subscriptions!',
+      `My name is ${name}.`,
+      '',
+      'I want to order:',
+      `- ${quantityText}${product.name}`,
+      `Status: ${status}`,
+      `Plan: ${plan}`,
+      `Duration: ${duration}`,
+      `Price: ${price}`,
+      '',
+      'Please share your payment accounts and assist me with the order.',
+      '',
+      'My contact details:',
+      `Phone: ${phone || 'N/A'}`,
+      `Email: ${email || 'N/A'}`,
+      `City: ${city || 'N/A'}`
+    ];
 
-    const waBase = "https://api.whatsapp.com/send?phone=923276847960";
-    const url = `${waBase}&text=${encodeURIComponent(message)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
+    const url = `https://wa.me/${whatsappNumberDigits}?text=${encodeURIComponent(messageLines.join('\n'))}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
     setShowWhatsAppForm(false);
 
-    // Track WhatsApp conversion event
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'whatsapp_click', {
-        'product_name': product.name,
-        'product_price': currentPrice
+    const gtag = getGtag();
+    if (gtag) {
+      gtag('event', 'whatsapp_click', {
+        product_name: product.name,
+        product_price: currentPrice,
+      });
+    }
+
+    const gtagClick = getGtag();
+    if (gtagClick) {
+      gtagClick('event', 'whatsapp_click', {
+        product_name: product.name,
+        product_price: currentPrice,
       });
     }
   };
@@ -1252,16 +1296,17 @@ const ProductDetail: React.FC = () => {
   const handlePlanSelect = (plan: Plan) => {
     setSelectedPlan(plan);
     
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'select_item', {
+    const gtagPlan = getGtag();
+    if (gtagPlan) {
+      gtagPlan('event', 'select_item', {
         item_list_id: 'plan_selection',
         item_list_name: 'Plan Selection',
         items: [{
           item_id: `${product?.id}_${plan.type}`,
           item_name: `${product?.name} - ${plan.type}`,
           index: 0,
-          item_category: 'plan'
-        }]
+          item_category: 'plan',
+        }],
       });
     }
   };
@@ -1313,7 +1358,7 @@ const ProductDetail: React.FC = () => {
       />
       
       {/* Breadcrumbs (toggleable) */}
-      {siteConfig.showBreadcrumbs !== false && (
+      {showBreadcrumbs && (
         <nav aria-label="Breadcrumb" className="mb-4">
           <ol className="flex text-sm text-muted-foreground">
             <li><Link to="/">Home</Link></li>
@@ -1519,3 +1564,4 @@ const ProductDetail: React.FC = () => {
 };
 
 export default ProductDetail;
+
