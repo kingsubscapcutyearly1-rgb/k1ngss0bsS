@@ -53,7 +53,7 @@ const Header: React.FC = () => {
           ))}
         </nav>
 
-        <div className="flex items-center space-x-2 md:space-x-4 overflow-hidden">
+        <div className="flex items-center space-x-2 md:space-x-4">
           <CurrencySelector />
           <ThemeToggle />
           <div className="shrink-0">
