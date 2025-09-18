@@ -83,6 +83,11 @@ const Home: React.FC = () => {
   const { formatPrice } = useCurrency();
   const featuredProducts = products.slice(0, 9);
 
+  // Ensure page opens at top on navigation
+  React.useEffect(() => {
+    try { window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior }); } catch { window.scrollTo(0, 0); }
+  }, []);
+
   return (
     <>
       <div className="min-h-screen">

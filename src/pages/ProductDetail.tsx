@@ -157,7 +157,7 @@ const ProductImage: React.FC<{
 }> = ({ product, onLoad, onError, loaded, errored }) => (
   <div className="relative group">
     <div className="relative rounded-xl overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 ring-1 ring-black/5">
-      <div className="aspect-[4/3] w-full flex items-center justify-center relative">
+      <div className="aspect-square sm:aspect-[4/3] w-full flex items-center justify-center relative">
         {!loaded && !errored && (
           <div className="absolute inset-0 animate-pulse bg-gray-200 dark:bg-gray-700" />
         )}
@@ -1300,16 +1300,18 @@ const ProductDetail: React.FC = () => {
         productPrice={formatPrice(currentPrice)}
       />
       
-      {/* Breadcrumbs */}
-      <nav aria-label="Breadcrumb" className="mb-4">
-        <ol className="flex text-sm text-muted-foreground">
-          <li><Link to="/">Home</Link></li>
-          <li className="mx-2">/</li>
-          <li><Link to={`/category/${primaryCategory}`}>{primaryCategory}</Link></li>
-          <li className="mx-2">/</li>
-          <li aria-current="page">{product.name}</li>
-        </ol>
-      </nav>
+      {/* Breadcrumbs (toggleable) */}
+      {siteConfig.showBreadcrumbs && (
+        <nav aria-label="Breadcrumb" className="mb-4">
+          <ol className="flex text-sm text-muted-foreground">
+            <li><Link to="/">Home</Link></li>
+            <li className="mx-2">/</li>
+            <li><Link to={`/category/${primaryCategory}`}>{primaryCategory}</Link></li>
+            <li className="mx-2">/</li>
+            <li aria-current="page">{product.name}</li>
+          </ol>
+        </nav>
+      )}
       
       {/* SEO structured data */}
       <script

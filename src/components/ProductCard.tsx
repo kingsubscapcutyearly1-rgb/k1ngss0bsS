@@ -253,7 +253,7 @@ export default function ProductCardSimple({ product }: { product: AnyProduct }) 
         <CardContent className="p-4 flex flex-col flex-1">
         {/* Image Area */}
         <div className="relative mb-4">
-          <div className="aspect-[3/2] w-full relative rounded-md overflow-hidden bg-muted">
+          <div className="aspect-square sm:aspect-[3/2] w-full relative rounded-md overflow-hidden bg-muted">
             <img
               src={imgError ? "/placeholder-image.jpg" : imageSrc}
               alt={product.name}

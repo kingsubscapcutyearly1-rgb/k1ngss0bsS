@@ -53,7 +53,7 @@ const Header: React.FC = () => {
           ))}
         </nav>
 
-        <div className="flex items-center space-x-2 md:space-x-4">
+        <div className="flex items-center space-x-2 md:space-x-4 overflow-hidden">
           <CurrencySelector />
           <ThemeToggle />
           <div className="shrink-0">
@@ -64,7 +64,7 @@ const Header: React.FC = () => {
 
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
             <SheetTrigger asChild className="md:hidden shrink-0">
-              <Button variant="outline" size="sm" className="touch-manipulation">
+              <Button variant="outline" size="sm" className="touch-manipulation" aria-label="Open menu">
                 <Menu className="h-4 w-4" />
               </Button>
             </SheetTrigger>
