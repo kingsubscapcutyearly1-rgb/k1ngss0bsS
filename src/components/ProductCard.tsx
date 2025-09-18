@@ -96,7 +96,8 @@ type AnyProduct = {
   stock?: boolean | number | "unlimited";
 };
 
-const WHATSAPP_NUMBER = "+923276847960";
+import { siteConfig } from '@/data/site-config';
+const WHATSAPP_NUMBER = siteConfig.whatsappNumber;
 
 // WhatsApp Order Popup Form
 function WhatsAppOrderPopup({ open, onOpenChange, product, price, onOrder }: any) {
@@ -242,7 +243,7 @@ export default function ProductCardSimple({ product }: { product: AnyProduct }) 
   return (
     <>
       <WhatsAppOrderPopup
-        open={waOpen}
+        open={siteConfig.whatsappDirectOrder ? false : waOpen}
         onOpenChange={setWaOpen}
         product={product}
         price={current}
@@ -369,7 +370,14 @@ export default function ProductCardSimple({ product }: { product: AnyProduct }) 
           </Link>
 <Button
   className="w-full bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
-  onClick={() => setWaOpen(true)}
+  onClick={() => {
+    if (siteConfig.whatsappDirectOrder) {
+      // fire direct flow with minimal info
+      handleWhatsAppOrder({ name: 'Customer', phone: '', email: '', city: '' });
+    } else {
+      setWaOpen(true);
+    }
+  }}
   disabled={!isInStock}
   aria-label={`Order ${product.name} via WhatsApp`}
   tabIndex={0}

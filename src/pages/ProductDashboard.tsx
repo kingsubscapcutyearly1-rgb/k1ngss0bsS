@@ -585,6 +585,7 @@ export const categories = [
                                   src={product.image || '/images/DefaultImage.jpg'}
                                   alt={product.name}
                                   className="w-10 h-10 rounded-lg object-cover"
+                                  loading="lazy"
                                   onError={(e) => {
                                     const target = e.target as HTMLImageElement;
                                     target.src = '/images/DefaultImage.jpg';

@@ -1,3 +1,4 @@
+import { siteConfig } from '@/data/site-config';
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -1098,6 +1099,15 @@ const ProductDetail: React.FC = () => {
   };
   
   const handleWhatsAppOrder = () => {
+    if (siteConfig.whatsappDirectOrder) {
+      // send a minimal direct message without collecting form data
+      const name = 'Customer';
+      const email = '';
+      const phone = '';
+      const city = '';
+      submitWhatsAppForm(name, email, phone, city);
+      return;
+    }
     setShowWhatsAppForm(true);
   };
   

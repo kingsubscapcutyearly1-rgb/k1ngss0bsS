@@ -7,27 +7,28 @@ import { CartProvider } from '@/context/CartContext';
 import { CompareProvider } from '@/context/CompareContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
-import Home from './pages/Home';
-import Tools from './pages/Tools';
-import About from './pages/About';
-import WhyUs from './pages/WhyUs';
-import Compare from './pages/Compare';
-import Testimonials from './pages/Testimonials';
-import NotFound from './pages/NotFound';
-import AllProducts from "./pages/AllProducts";
-import ProductDetail from "./pages/ProductDetail";
+import { lazy, Suspense } from 'react';
+const Home = lazy(() => import('./pages/Home'));
+const Tools = lazy(() => import('./pages/Tools'));
+const About = lazy(() => import('./pages/About'));
+const WhyUs = lazy(() => import('./pages/WhyUs'));
+const Compare = lazy(() => import('./pages/Compare'));
+const Testimonials = lazy(() => import('./pages/Testimonials'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+const AllProducts = lazy(() => import('./pages/AllProducts'));
+const ProductDetail = lazy(() => import('./pages/ProductDetail'));
 
 // Additional pages
-import Blog from './pages/Blog';
-import PrivacyPolicy from './pages/PrivacyPolicy';
-import RefundPolicy from './pages/RefundPolicy';
-import DMCA from './pages/DMCA';
-import Admin from './pages/Admin';
-import AdminLogin from './pages/AdminLogin';
-import AdminDashboard from './pages/AdminDashboard';
-import ProductController from './pages/ProductController';
-import Contact from './pages/Contact';
-import TermsConditions from './pages/TermsConditions';
+const Blog = lazy(() => import('./pages/Blog'));
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+const RefundPolicy = lazy(() => import('./pages/RefundPolicy'));
+const DMCA = lazy(() => import('./pages/DMCA'));
+const Admin = lazy(() => import('./pages/Admin'));
+const AdminLogin = lazy(() => import('./pages/AdminLogin'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const ProductController = lazy(() => import('./pages/ProductController'));
+const Contact = lazy(() => import('./pages/Contact'));
+const TermsConditions = lazy(() => import('./pages/TermsConditions'));
 import PurchaseNotifications from './components/PurchaseNotifications';
 import FloatingElements from './components/FloatingElements';
 import FloatingCart from './components/FloatingCart';
@@ -46,6 +47,7 @@ const App = () => (
               <div className="min-h-screen flex flex-col">
                 <Header />
                 <main className="flex-1">
+                  <Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Loading…</div>}>
                   <Routes>
                     <Route path="/" element={<Home />} />
                     <Route path="/tools" element={<Tools />} />
@@ -71,6 +73,7 @@ const App = () => (
                     <Route path="/productdashboard" element={<ProductDashboard onLogout={() => {}} />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
+                  </Suspense>
                 </main>
                 <Footer />
                 <PurchaseNotifications />
