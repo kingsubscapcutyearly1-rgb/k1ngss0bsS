@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,15 @@ import {
   Crown
 } from 'lucide-react';
 import { products } from '@/data/products';
+import { siteConfig } from '@/data/site-config';
+
+// Lightweight settings persisted in localStorage to affect runtime behavior
+const LS_SETTINGS_KEY = 'ks_settings_v1';
+type RuntimeSettings = { whatsappDirectOrder?: boolean };
+function loadSettings(): RuntimeSettings {
+  try { return JSON.parse(localStorage.getItem(LS_SETTINGS_KEY) || '{}'); } catch { return {}; }
+}
+function saveSettings(s: RuntimeSettings) { try { localStorage.setItem(LS_SETTINGS_KEY, JSON.stringify(s)); } catch {} }
 
 const AdminDashboard: React.FC = () => {
   const [whatsappNumber, setWhatsappNumber] = useState('+923276847960');
@@ -46,6 +55,13 @@ const AdminDashboard: React.FC = () => {
     showDiscountBadges: true,
     maintenanceMode: false
   });
+
+  const [whatsappDirectOrder, setWhatsappDirectOrder] = useState<boolean>(siteConfig.whatsappDirectOrder);
+
+  useEffect(() => {
+    const s = loadSettings();
+    if (typeof s.whatsappDirectOrder === 'boolean') setWhatsappDirectOrder(s.whatsappDirectOrder);
+  }, []);
 
   // Popup/Announcement Settings
   const [popupSettings, setPopupSettings] = useState({
@@ -418,6 +434,29 @@ const AdminDashboard: React.FC = () => {
                     />
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Runtime Settings Tab */}
+          <TabsContent value="settings" className="space-y-6">
+            <h2 className="text-2xl font-bold">Runtime Settings</h2>
+            <Card>
+              <CardHeader>
+                <CardTitle>WhatsApp Order Flow</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label>Open WhatsApp directly (skip form)</Label>
+                  <Switch
+                    checked={whatsappDirectOrder}
+                    onCheckedChange={(checked) => {
+                      setWhatsappDirectOrder(checked as boolean);
+                      saveSettings({ whatsappDirectOrder: checked as boolean });
+                    }}
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground">This setting saves to your browser (localStorage) and applies immediately on this device.</p>
               </CardContent>
             </Card>
           </TabsContent>

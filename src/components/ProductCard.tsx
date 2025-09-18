@@ -97,6 +97,15 @@ type AnyProduct = {
 };
 
 import { siteConfig } from '@/data/site-config';
+
+// Read runtime setting from localStorage if present
+const getRuntimeWhatsappDirect = () => {
+  try {
+    const s = JSON.parse(localStorage.getItem('ks_settings_v1') || '{}');
+    if (typeof s.whatsappDirectOrder === 'boolean') return s.whatsappDirectOrder;
+  } catch {}
+  return siteConfig.whatsappDirectOrder;
+};
 const WHATSAPP_NUMBER = siteConfig.whatsappNumber;
 
 // WhatsApp Order Popup Form
@@ -247,7 +256,7 @@ export default function ProductCardSimple({ product }: { product: AnyProduct }) 
   return (
     <>
       <WhatsAppOrderPopup
-        open={siteConfig.whatsappDirectOrder ? false : waOpen}
+        open={getRuntimeWhatsappDirect() ? false : waOpen}
         onOpenChange={setWaOpen}
         product={product}
         price={current}
@@ -375,7 +384,7 @@ export default function ProductCardSimple({ product }: { product: AnyProduct }) 
 <Button
   className="w-full bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
   onClick={() => {
-    if (siteConfig.whatsappDirectOrder) {
+    if (getRuntimeWhatsappDirect()) {
       // fire direct flow with minimal info
       handleWhatsAppOrder({ name: 'Customer', phone: '', email: '', city: '' });
     } else {

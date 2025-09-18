@@ -7,6 +7,7 @@ import { CartProvider } from '@/context/CartContext';
 import { CompareProvider } from '@/context/CompareContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import ScrollToTop from './components/ScrollToTop';
 import { lazy, Suspense } from 'react';
 const Home = lazy(() => import('./pages/Home'));
 const Tools = lazy(() => import('./pages/Tools'));
@@ -44,6 +45,7 @@ const App = () => (
           <TooltipProvider>
             <Toaster />
             <BrowserRouter>
+              <ScrollToTop />
               <div className="min-h-screen flex flex-col">
                 <Header />
                 <main className="flex-1" id="main">

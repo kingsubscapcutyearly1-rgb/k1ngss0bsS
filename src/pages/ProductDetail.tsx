@@ -1102,8 +1102,16 @@ const ProductDetail: React.FC = () => {
     }
   };
   
+  const getRuntimeWhatsappDirect = () => {
+    try {
+      const s = JSON.parse(localStorage.getItem('ks_settings_v1') || '{}');
+      if (typeof s.whatsappDirectOrder === 'boolean') return s.whatsappDirectOrder;
+    } catch {}
+    return siteConfig.whatsappDirectOrder;
+  };
+
   const handleWhatsAppOrder = () => {
-    if (siteConfig.whatsappDirectOrder) {
+    if (getRuntimeWhatsappDirect()) {
       // send a minimal direct message without collecting form data
       const name = 'Customer';
       const email = '';
@@ -1305,7 +1313,7 @@ const ProductDetail: React.FC = () => {
       />
       
       {/* Breadcrumbs (toggleable) */}
-      {siteConfig.showBreadcrumbs && (
+      {siteConfig.showBreadcrumbs !== false && (
         <nav aria-label="Breadcrumb" className="mb-4">
           <ol className="flex text-sm text-muted-foreground">
             <li><Link to="/">Home</Link></li>

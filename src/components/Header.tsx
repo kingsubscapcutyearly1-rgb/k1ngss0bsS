@@ -30,9 +30,9 @@ const Header: React.FC = () => {
   return (
     <header className="sticky top-0 z-50 w-full border-b-2 border-gray-200/50 dark:border-gray-700/50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl shadow-lg">
       <div className="container mx-auto flex h-18 items-center justify-between px-4">
-        <Link to="/" className="flex items-center space-x-3 group">
-          <Crown className="h-10 w-10 text-primary group-hover:scale-110 transition-transform duration-200" />
-          <span className="text-2xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 bg-clip-text text-transparent group-hover:from-purple-600 group-hover:to-blue-600 transition-all duration-300">
+        <Link to="/" className="flex items-center space-x-2 group">
+          <Crown className="h-8 w-8 md:h-10 md:w-10 text-primary group-hover:scale-110 transition-transform duration-200" />
+          <span className="text-xl md:text-2xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 bg-clip-text text-transparent group-hover:from-purple-600 group-hover:to-blue-600 transition-all duration-300">
             King Subscription
           </span>
         </Link>
@@ -54,8 +54,8 @@ const Header: React.FC = () => {
         </nav>
 
         <div className="flex items-center space-x-2 md:space-x-4 overflow-hidden">
-          <CurrencySelector />
-          <ThemeToggle />
+          <div className="hidden sm:block"><CurrencySelector /></div>
+          <div className="hidden sm:block"><ThemeToggle /></div>
           <div className="shrink-0">
             <CartIcon />
           </div>

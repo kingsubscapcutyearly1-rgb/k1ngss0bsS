@@ -73,10 +73,10 @@ const FloatingCart: React.FC = () => {
     <>
       {/* Floating Cart Button */}
       {!isOpen && getTotalItems() > 0 && (
-        <div className="fixed bottom-6 right-6 z-50">
+        <div className="fixed bottom-6 right-6 z-40 sm:z-50">
           <Button
             onClick={() => setIsOpen(true)}
-            className="bg-primary hover:bg-primary/90 text-white rounded-full p-4 shadow-2xl hover:shadow-3xl transition-all transform hover:scale-105"
+            className="bg-primary hover:bg-primary/90 text-white rounded-full p-4 shadow-xl sm:shadow-2xl hover:shadow-3xl transition-all transform hover:scale-105"
             size="lg"
           >
             <ShoppingCart className="w-6 h-6" />
