@@ -879,6 +879,7 @@ const WhatsAppForm: React.FC<{
         <p className="mb-4 text-center text-muted-foreground">Fill in your details and we'll connect you on WhatsApp.</p>
         <div className="space-y-3">
           <Input
+            id="detail_name"
             placeholder="Your Name"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -886,6 +887,7 @@ const WhatsAppForm: React.FC<{
           />
           {errors.name && <div className="text-xs text-red-500">{errors.name}</div>}
           <Input
+            id="detail_email"
             type="email"
             placeholder="Your Email"
             value={email}
@@ -894,6 +896,7 @@ const WhatsAppForm: React.FC<{
           />
           {errors.email && <div className="text-xs text-red-500">{errors.email}</div>}
           <Input
+            id="detail_phone"
             type="tel"
             placeholder="Your Phone (e.g. 03XXXXXXXXX)"
             value={phone}
@@ -902,6 +905,7 @@ const WhatsAppForm: React.FC<{
           />
           {errors.phone && <div className="text-xs text-red-500">{errors.phone}</div>}
           <Input
+            id="detail_city"
             placeholder="Your City"
             value={city}
             onChange={(e) => setCity(e.target.value)}

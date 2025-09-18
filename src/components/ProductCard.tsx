@@ -152,6 +152,7 @@ function WhatsAppOrderPopup({ open, onOpenChange, product, price, onOrder }: any
         <form onSubmit={handleSubmit} className="space-y-3" aria-label="WhatsApp Order Form">
           <Input
             ref={nameRef}
+            id="wa_name"
             name="name"
             placeholder="Your Name*"
             value={form.name}
@@ -161,6 +162,7 @@ function WhatsAppOrderPopup({ open, onOpenChange, product, price, onOrder }: any
             autoComplete="name"
           />
           <Input
+            id="wa_email"
             name="email"
             placeholder="Email (optional)"
             value={form.email}
@@ -170,6 +172,7 @@ function WhatsAppOrderPopup({ open, onOpenChange, product, price, onOrder }: any
             autoComplete="email"
           />
           <Input
+            id="wa_phone"
             name="phone"
             placeholder="Phone Number*"
             value={form.phone}
@@ -179,6 +182,7 @@ function WhatsAppOrderPopup({ open, onOpenChange, product, price, onOrder }: any
             autoComplete="tel"
           />
           <Input
+            id="wa_city"
             name="city"
             placeholder="City (optional)"
             value={form.city}
