@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,13 +6,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, X, Star, ArrowLeft, ShoppingCart } from "lucide-react";
 import { Product } from "@/data/products";
+import { useSeo } from '@/context/SeoContext';
 import { useProductsContext } from "@/context/ProductsContext";
 import { useCurrency } from "@/context/CurrencyContext";
 import { useCart } from "@/context/CartContext";
 import WhatsAppButton from "@/components/WhatsAppButton";
 
 export default function Compare() {
+  useSeo('compare');
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
+  const { products } = useProductsContext();
   const { formatPrice } = useCurrency();
   const { addToCart } = useCart();
 
@@ -31,12 +34,14 @@ export default function Compare() {
 
   // Get current price for a product
   const getCurrentPrice = (product: Product): number => {
-    return product.price.monthly || product.price.yearly || product.price.original;
+    const price = product.price || {};
+    return price.monthly ?? price.yearly ?? price.original ?? 0;
   };
 
   // Get original price for a product
   const getOriginalPrice = (product: Product): number => {
-    return product.price.original;
+    const price = product.price || {};
+    return price.original ?? price.monthly ?? price.yearly ?? 0;
   };
 
   return (

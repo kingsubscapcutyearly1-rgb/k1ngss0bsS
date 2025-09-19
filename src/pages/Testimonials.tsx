@@ -3,11 +3,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Star, Users, TrendingUp, Award, MessageCircle } from 'lucide-react';
+import { useSeo } from '@/context/SeoContext';
 import { Link } from 'react-router-dom';
 import { useCurrency } from '@/context/CurrencyContext';
 import WhatsAppButton from '@/components/WhatsAppButton';
 
 const Testimonials: React.FC = () => {
+  useSeo('testimonials');
   const { formatPrice } = useCurrency();
 
   const testimonials = [

@@ -3,7 +3,5 @@ export const siteConfig = {
   // If false: show the WhatsApp order form modal first
   whatsappDirectOrder: true,
   whatsappNumber: '+923276847960',
-  showBreadcrumbs: true,
+  showBreadcrumbs: false,
 };
-
-

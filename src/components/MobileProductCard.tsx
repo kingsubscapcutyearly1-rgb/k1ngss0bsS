@@ -12,20 +12,13 @@ import {
   CheckCircle, 
   ShoppingCart, 
   Tag, 
-  Zap, 
-  AlertCircle,
-  Clock,
-  Users,
-  Shield,
-  Truck,
   Eye,
   MessageCircle
-} from "lucide-react";
+} from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useCurrency } from "@/context/CurrencyContext";
 import { useCart } from "@/context/CartContext";
 import { useSettings } from '@/context/SettingsContext';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { getProductImage, getStockLabel, isProductInStock } from "@/data/products";
 
 /* ---------- Helper Functions & Hooks ---------- */
@@ -125,7 +118,6 @@ function WhatsAppOrderPopup({ open, onOpenChange, product, price, onOrder, idPre
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const nameRef = useRef<HTMLInputElement>(null);
-  const fieldPrefix = idPrefix || (product?.id ?? "product");
 
   useEffect(() => {
     if (open && nameRef.current) nameRef.current.focus();
@@ -145,7 +137,6 @@ function WhatsAppOrderPopup({ open, onOpenChange, product, price, onOrder, idPre
     }
     setLoading(true);
     try {
-      // Save to backend
       await fetch("/api/products/whatsapp-orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -213,7 +204,7 @@ function WhatsAppOrderPopup({ open, onOpenChange, product, price, onOrder, idPre
           />
           {error && <div className="text-red-600 text-xs">{error}</div>}
           <DialogFooter>
-            <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white" disabled={loading} aria-label="Submit WhatsApp Order">
+            <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white" disabled={loading}>
               <span className="font-bold flex items-center justify-center gap-2">
                 <ShieldCheck className="w-4 h-4" /> Place Order & Open WhatsApp
               </span>
@@ -225,22 +216,18 @@ function WhatsAppOrderPopup({ open, onOpenChange, product, price, onOrder, idPre
   );
 }
 
-/* ---------- The Optimized Component ---------- */
-
-export default function ProductCardSimple({ product, viewMode = 'grid' }: { product: AnyProduct; viewMode?: 'grid' | 'list' }) {
+/* ---------- Mobile Optimized Component ---------- */
+export default function MobileProductCard({ product, viewMode = 'grid' }: { product: AnyProduct; viewMode?: 'grid' | 'list' }) {
   const { formatPrice } = useSafeCurrency();
   const { addToCart } = useSafeCart();
   const [imgError, setImgError] = useState(false);
   const [imgLoading, setImgLoading] = useState(true);
   const [waOpen, setWaOpen] = useState(false);
-  const isMobile = useIsMobile();
 
   const { settings } = useSettings();
   const whatsappNumberDigits = settings.whatsappNumber.replace(/\D/g, '') || '923276847960';
   const directWhatsApp = settings.whatsappDirectOrder;
-  const showDiscountBadges = settings.showDiscountBadges;
 
-  // Use utility functions for image and stock
   const imageSrc = getProductImage(product.image);
   const { current, original, savings, discount } = useProductPricing(product.price);
   const { isInStock, quantity } = useStockInfo(product.stock);
@@ -248,8 +235,11 @@ export default function ProductCardSimple({ product, viewMode = 'grid' }: { prod
   const featureList = (product.features ?? []).filter(Boolean).slice(0, 4);
   const isList = viewMode === 'list';
 
-  // Generate random purchase count (for social proof)
-  const randomPurchaseCount = useMemo(() => Math.floor(Math.random() * 500) + 50, []);
+  const randomPurchaseCount = useMemo(() => {
+    const min = 120;
+    const max = 420;
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }, []);
 
   const handleAddToCart = () => {
     if (!isInStock) return;
@@ -266,6 +256,27 @@ export default function ProductCardSimple({ product, viewMode = 'grid' }: { prod
     });
   };
 
+  const handleWhatsAppOrder = (form: WhatsAppOrderForm) => {
+    const currentDate = new Date().toLocaleDateString();
+    const limitedOffer = discount > 15 ? `*Limited Time Offer:* This ${discount}% discount is valid only until tomorrow!` : '';
+    const message = `Hello! I want to order:
+
+*Product:* ${product.name}
+*Price:* ${formatPrice(current)} ${discount > 0 ? `(Save ${discount}%)` : ''}
+${limitedOffer}
+
+*Name:* ${form.name}
+*Phone:* ${form.phone}
+${form.email ? `*Email:* ${form.email}
+` : ''}${form.city ? `*City:* ${form.city}
+` : ''}*Reference:* ${product.id}
+*Date:* ${currentDate}
+
+Please send me payment details. Thank you!`;
+    const url = `https://wa.me/${whatsappNumberDigits}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+  };
+
   const handleWhatsAppAction = () => {
     if (directWhatsApp) {
       handleWhatsAppOrder({ name: 'Customer', phone: '', email: '', city: '' });
@@ -274,29 +285,85 @@ export default function ProductCardSimple({ product, viewMode = 'grid' }: { prod
     setWaOpen(true);
   };
 
-  const handleWhatsAppOrder = (form: WhatsAppOrderForm) => {
-    const currentDate = new Date().toLocaleDateString();
-    const limitedOffer = discount > 15 ? `*Limited Time Offer:* This ${discount}% discount is valid only until tomorrow!` : '';
-    const message = `Hello! I want to order:
- 
-*Product:* ${product.name}
-*Price:* ${formatPrice(current)} ${discount > 0 ? `(Save ${discount}%)` : ''}
-${limitedOffer}
- 
-*Name:* ${form.name}
-*Phone:* ${form.phone}
-${form.email ? `*Email:* ${form.email}
-` : ''}${form.city ? `*City:* ${form.city}
-` : ''}*Reference:* ${product.id}
-*Date:* ${currentDate}
- 
-Please send me payment details. Thank you!`;
-    const url = `https://wa.me/${whatsappNumberDigits}?text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
+  const ActionTile: React.FC<{
+    icon: LucideIcon;
+    lines: [string, string];
+    onClick?: () => void;
+    to?: string;
+    disabled?: boolean;
+    variant?: 'view' | 'whatsapp' | 'cart';
+  }> = ({ icon: Icon, lines, onClick, to, disabled, variant = 'view' }) => {
+    
+    // Define colors for each button type
+    const getVariantClasses = () => {
+      if (disabled) return {
+        container: 'cursor-not-allowed opacity-50 bg-muted/40 border-muted',
+        icon: 'bg-muted text-muted-foreground',
+        text: 'text-muted-foreground'
+      };
+      
+      switch (variant) {
+        case 'whatsapp':
+          return {
+            container: 'hover:border-green-300 hover:bg-green-50 bg-green-50/50 border-green-200',
+            icon: 'bg-green-100 text-green-700',
+            text: 'text-green-700'
+          };
+        case 'cart':
+          return {
+            container: 'hover:border-purple-300 hover:bg-purple-50 bg-purple-50/50 border-purple-200',
+            icon: 'bg-purple-100 text-purple-700',
+            text: 'text-purple-700'
+          };
+        case 'view':
+        default:
+          return {
+            container: 'hover:border-blue-300 hover:bg-blue-50 bg-blue-50/50 border-blue-200',
+            icon: 'bg-blue-100 text-blue-700',
+            text: 'text-blue-700'
+          };
+      }
+    };
+
+    const classes = getVariantClasses();
+    
+    const content = (
+      <div
+        className={cn(
+          'flex w-full flex-col items-center justify-center gap-1 rounded-xl border px-3 py-2 text-xs font-semibold uppercase tracking-wide transition-colors',
+          classes.container
+        )}
+      >
+        <div className={cn('flex h-7 w-7 items-center justify-center rounded-full', classes.icon)}>
+          <Icon className="h-3.5 w-3.5" />
+        </div>
+        <span className="leading-tight text-xs text-muted-foreground">{lines[0]}</span>
+        <span className={cn('leading-tight font-bold text-xs', classes.text)}>{lines[1]}</span>
+      </div>
+    );
+
+    if (to) {
+      return (
+        <Link to={to} className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+          {content}
+        </Link>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={disabled ? undefined : onClick}
+        disabled={disabled}
+        className="block w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      >
+        {content}
+      </button>
+    );
   };
 
-  // List View for Mobile
-  if (isList && isMobile) {
+  // List View for Mobile - completely redesigned
+  if (isList) {
     return (
       <>
         <WhatsAppOrderPopup
@@ -312,15 +379,13 @@ Please send me payment details. Thank you!`;
           !isInStock && 'opacity-75'
         )}>
           <div className="flex items-center p-2 gap-3">
-            {/* Small Image on Left */}
+            {/* Very Small Image on Left */}
             <div className="relative flex-shrink-0 w-16 h-12 rounded-md overflow-hidden bg-muted/40">
               <img
                 src={imgError ? '/placeholder-image.jpg' : imageSrc}
                 alt={product.name}
                 className="w-full h-full object-contain"
                 loading="lazy"
-                width="64"
-                height="48"
                 onLoad={() => setImgLoading(false)}
                 onError={() => setImgError(true)}
               />
@@ -372,7 +437,7 @@ Please send me payment details. Thank you!`;
     );
   }
 
-  // Grid View - Responsive for both Mobile and Desktop
+  // Grid View for Mobile - Completely redesigned for better mobile UX
   return (
     <>
       <WhatsAppOrderPopup
@@ -383,216 +448,127 @@ Please send me payment details. Thank you!`;
         onOrder={handleWhatsAppOrder}
         idPrefix={product.id}
       />
-      <Card className="group h-full flex flex-col border bg-card text-card-foreground shadow-sm transition-all duration-300 hover:shadow-lg">
-        <CardContent className={cn("flex flex-col flex-1", isMobile ? "p-3" : "p-4")}>
-          {/* Image Area - Smaller on Mobile */}
-          <div className="relative mb-3">
-            <div className={cn(
-              "w-full relative rounded-md overflow-hidden bg-muted",
-              isMobile ? "aspect-[4/3] max-h-[100px]" : "aspect-square sm:aspect-[3/2]"
-            )}>
-              <img
-                src={imgError ? "/placeholder-image.jpg" : imageSrc}
-                alt={product.name}
-                className={cn(
-                  "object-contain w-full h-full transition-transform duration-300 group-hover:scale-105",
-                  imgLoading ? 'blur-sm' : 'blur-0'
-                )}
-                loading="lazy"
-                width={isMobile ? "100" : undefined}
-                height={isMobile ? "75" : undefined}
-                onLoad={() => setImgLoading(false)}
-                onError={() => setImgError(true)}
-              />
-            </div>
-            
-            {/* Product Badge */}
-            {product.badge && (
-              <div className="absolute top-1.5 left-1.5">
-                <span className={cn(
-                  "font-semibold rounded-full bg-blue-100 text-blue-800 border border-blue-200",
-                  isMobile ? "px-1.5 py-0.5 text-xs" : "px-2 py-1 text-xs"
-                )}>
-                  {product.badge}
-                </span>
-              </div>
-            )}
-            
-            {/* Verified Badge */}
-            <div className="absolute top-1.5 right-1.5">
-              <span className={cn(
-                "font-semibold rounded-full text-white bg-green-600 flex items-center gap-1",
-                isMobile ? "text-xs px-1.5 py-0.5" : "text-xs px-2 py-1"
-              )}>
-                <ShieldCheck className={cn(isMobile ? "w-2.5 h-2.5" : "w-3 h-3")} />
-                {isMobile ? "✓" : "Verified"}
-              </span>
-            </div>
+      <Card className={cn(
+        'group relative h-full overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm transition-all duration-300 hover:shadow-lg',
+        !isInStock && 'opacity-90'
+      )}>
+        {/* Improved Slim Top Ribbon */}
+        <div className="absolute top-1.5 left-1.5 right-1.5 z-10 flex items-center justify-between">
+          <Badge className={cn(
+            "text-xs px-1.5 py-0.5 font-semibold rounded-md",
+            isInStock ? "bg-green-100 text-green-700 border-green-200" : "bg-red-100 text-red-700 border-red-200"
+          )}>
+            <ShieldCheck className="h-2.5 w-2.5 mr-1" />
+            {isInStock ? 'Verified' : 'Out'}
+          </Badge>
+          {product.badge && (
+            <Badge variant="secondary" className="text-xs px-1.5 py-0.5 font-semibold bg-blue-100 text-blue-700 rounded-md">
+              {product.badge}
+            </Badge>
+          )}
+        </div>
 
-            {/* Low Stock Warning */}
-            {isInStock && quantity > 0 && quantity < 10 && (
-              <div className={cn(
-                "absolute bottom-1.5 left-1.5 bg-amber-100 text-amber-800 rounded font-medium",
-                isMobile ? "px-1.5 py-0.5 text-xs" : "px-2 py-1 text-xs"
-              )}>
-                Only {quantity} left!
-              </div>
-            )}
-          </div>
+        {/* Much Smaller Compact Image */}
+        <div className="relative mx-2 mt-6 mb-1 overflow-hidden rounded-md bg-muted/30 flex items-center justify-center aspect-[4/3]">
+          <img
+            src={imgError ? '/placeholder-image.jpg' : imageSrc}
+            alt={product.name}
+            className="max-h-full w-full object-contain transition duration-300 group-hover:scale-105"
+            loading="lazy"
+            width="120"
+            height="90"
+            onLoad={() => setImgLoading(false)}
+            onError={() => setImgError(true)}
+          />
+        </div>
 
+        <CardContent className="flex flex-1 flex-col gap-1.5 p-2">
           {/* Title & Category */}
-          <h3 className={cn(
-            "font-bold mb-1 line-clamp-2",
-            isMobile ? "text-sm" : "text-lg"
-          )}>{product.name}</h3>
-          <div className={cn(
-            "flex items-center gap-1.5 text-muted-foreground mb-2",
-            isMobile ? "text-xs" : "text-xs"
-          )}>
-            <Tag className={cn(isMobile ? "w-2.5 h-2.5" : "w-3 h-3", "opacity-70")} />
-            <span className="truncate">{primaryCategory}</span>
+          <div className="space-y-0.5">
+            <h3 className="font-bold text-sm leading-tight line-clamp-2">{product.name}</h3>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Tag className="h-2.5 w-2.5" />
+              <span className="truncate">{primaryCategory}</span>
+            </div>
           </div>
 
-          {/* Stock Status Pill */}
-          <div className="mb-2">
-            {isInStock ? (
-              <span className={cn(
-                "inline-flex items-center font-semibold rounded-full bg-green-100 text-green-800",
-                isMobile ? "px-2 py-0.5 text-xs" : "px-3 py-1 text-xs"
-              )}>
-                <CheckCircle className={cn(isMobile ? "w-2.5 h-2.5 mr-0.5" : "w-3 h-3 mr-1")} />
-                In Stock
-              </span>
-            ) : (
-              <span className={cn(
-                "inline-flex items-center font-semibold rounded-full bg-red-100 text-red-800",
-                isMobile ? "px-2 py-0.5 text-xs" : "px-3 py-1 text-xs"
-              )}>
-                <AlertCircle className={cn(isMobile ? "w-2.5 h-2.5 mr-0.5" : "w-3 h-3 mr-1")} />
-                Out of Stock
-              </span>
+          {/* In Stock Status */}
+          <div className="mb-1">
+            <span className={cn(
+              "inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full",
+              isInStock ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+            )}>
+              <CheckCircle className="w-2.5 h-2.5 mr-1" />
+              {isInStock ? "In Stock" : "Out of Stock"}
+            </span>
+            {quantity > 0 && quantity < 10 && (
+              <p className="text-xs font-semibold text-amber-600 mt-0.5">Only {quantity} left!</p>
             )}
           </div>
 
-          {/* Single Line Rating + Social Proof */}
-          <div className={cn(
-            "flex items-center gap-1 text-muted-foreground mb-3",
-            isMobile ? "text-xs" : "text-sm"
-          )}>
-            <Star className={cn(
-              "fill-yellow-400 text-yellow-400",
-              isMobile ? "w-3 h-3" : "w-4 h-4"
-            )} />
-            <span className="font-semibold">
-              {(product.rating ?? 4.9).toFixed(1)}
-            </span>
+          {/* Single Line Rating + Purchase Count */}
+          <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+            <span className="font-medium">{(product.rating ?? 4.9).toFixed(1)}</span>
             <span className="text-muted-foreground">·</span>
             <span>{randomPurchaseCount.toLocaleString()} bought</span>
           </div>
-          
-          {/* Features - Vertical List for Both PC and Mobile */}
-          <div className={cn(
-            "mb-4 space-y-2",
-            isMobile ? "text-xs" : "text-sm"
-          )}>
-            {(product.features?.slice(0, 4) || []).map((feature, i) => (
-              <div key={i} className="flex items-start text-muted-foreground">
-                <CheckCircle className={cn(
-                  "text-green-500 flex-shrink-0 mt-0.5",
-                  isMobile ? "w-3 h-3 mr-1.5" : "w-4 h-4 mr-2"
-                )} />
-                <span className="leading-tight">{feature}</span>
-              </div>
-            ))}
-          </div>
 
-          {/* Slimmer Pricing Box */}
-          <div className={cn(
-            "mt-auto mb-3 rounded-lg border border-blue-100 relative bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900 dark:to-indigo-900 dark:border-blue-900",
-            isMobile ? "p-1.5" : "p-3"
-          )}>
-            {showDiscountBadges && discount > 0 && (
-              <div className="absolute -top-2 -right-2">
-                <span className={cn(
-                  "font-bold rounded-full bg-red-500 text-white animate-pulse",
-                  isMobile ? "px-1.5 py-0.5 text-xs" : "px-2 py-1 text-xs"
-                )}>
-                  {discount}% OFF
-                </span>
-              </div>
-            )}
+          {/* Compact 2x2 Features Grid */}
+          {featureList.length > 0 && (
+            <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs mb-2">
+              {featureList.slice(0, 4).map((feature, index) => (
+                <div key={index} className="flex items-center gap-1 text-muted-foreground">
+                  <CheckCircle className="h-2.5 w-2.5 text-emerald-500 flex-shrink-0" />
+                  <span className="truncate text-xs">{feature}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Enhanced Purple Gradient Pricing */}
+          <div className="rounded-lg bg-gradient-to-br from-purple-500/20 via-purple-600/15 to-indigo-500/20 border border-purple-200/40 backdrop-blur-sm px-3 py-2 mb-2">
             <div className="flex items-center justify-between mb-1">
-              <span className={cn(
-                "text-muted-foreground line-through",
-                isMobile ? "text-xs" : "text-sm"
-              )}>{formatPrice(original)}</span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-base font-bold text-primary">{formatPrice(current)}</span>
+                {original > current && (
+                  <span className="text-xs text-muted-foreground line-through">{formatPrice(original)}</span>
+                )}
+              </div>
+              {discount > 0 && (
+                <Badge variant="destructive" className="text-xs font-bold px-1.5 py-0.5 animate-pulse">
+                  {discount}% OFF
+                </Badge>
+              )}
             </div>
-            <div className={cn(
-              "font-extrabold text-primary",
-              isMobile ? "text-lg" : "text-2xl"
-            )}>{formatPrice(current)}</div>
             {savings > 0 && (
-              <div className="text-xs text-muted-foreground mt-1">You save {formatPrice(savings)}</div>
+              <div className="text-xs text-emerald-600 font-medium">You save {formatPrice(savings)}</div>
             )}
           </div>
 
-          {/* Trust Badges */}
-          <div className={cn(
-            "flex items-center justify-between mb-3 text-muted-foreground",
-            isMobile ? "text-xs" : "text-xs"
-          )}>
-            <div className="flex items-center">
-              <Shield className={cn(isMobile ? "w-2.5 h-2.5 mr-0.5" : "w-3 h-3 mr-1")} />
-              Secure
-            </div>
-            <div className="flex items-center">
-              <Truck className={cn(isMobile ? "w-2.5 h-2.5 mr-0.5" : "w-3 h-3 mr-1")} />
-              Free Delivery
-            </div>
-          </div>
-
-          {/* Action Buttons - Fixed for very small screens */}
-          <div className={cn("space-y-2", isMobile ? "space-y-1.5" : "")}>
-            <Link to={`/product/${product.id}`} className="block" tabIndex={0} aria-label={`View details for ${product.name}`}>
-              <Button variant="outline" className={cn(
-                "w-full flex items-center justify-center gap-1 min-h-[36px]",
-                isMobile ? "text-xs px-2 py-1.5" : "gap-2"
-              )} disabled={!isInStock} aria-label="View Details">
-                <Tag className={cn(isMobile ? "w-3 h-3" : "w-4 h-4")} />
-                <span className={cn(isMobile ? "truncate" : "")}>
-                  {isMobile ? "View Details" : "View Details & Plans"}
-                </span>
-              </Button>
-            </Link>
-            <Button
-              className={cn(
-                "w-full bg-green-600 hover:bg-green-700 text-white flex items-center justify-center gap-1 min-h-[36px]",
-                isMobile ? "text-xs px-2 py-1.5" : "gap-2"
-              )}
+          {/* Enhanced Action Tiles with Proper Colors */}
+          <div className="space-y-1.5">
+            <ActionTile
+              icon={Eye}
+              lines={["View", "Plans"]}
+              to={`/product/${product.id}`}
+              disabled={!isInStock}
+              variant="view"
+            />
+            <ActionTile
+              icon={MessageCircle}
+              lines={["Order via", "WhatsApp"]}
               onClick={handleWhatsAppAction}
               disabled={!isInStock}
-              aria-label={`Order ${product.name} via WhatsApp`}
-              tabIndex={0}
-            >
-              <MessageCircle className={cn(isMobile ? "w-3 h-3" : "w-4 h-4")} />
-              <span className={cn("font-bold", isMobile ? "truncate" : "")}>
-                {isMobile ? "Order WhatsApp" : "Order via WhatsApp"}
-              </span>
-            </Button>
-            <Button
-              variant="secondary"
-              className={cn(
-                "w-full flex items-center justify-center gap-1 min-h-[36px]",
-                isMobile ? "text-xs px-2 py-1.5" : "gap-2"
-              )}
+              variant="whatsapp"
+            />
+            <ActionTile
+              icon={ShoppingCart}
+              lines={["Add to", "Cart"]}
               onClick={handleAddToCart}
               disabled={!isInStock}
-              aria-label="Add to Cart"
-              tabIndex={0}
-            >
-              <ShoppingCart className={cn(isMobile ? "w-3 h-3" : "w-4 h-4")} />
-              <span className={cn(isMobile ? "truncate" : "")}>Add to Cart</span>
-            </Button>
+              variant="cart"
+            />
           </div>
         </CardContent>
       </Card>

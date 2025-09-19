@@ -16,8 +16,10 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import WhatsAppButton from '@/components/WhatsAppButton';
+import { useSeo } from '@/context/SeoContext';
 
 const About: React.FC = () => {
+  useSeo('about');
   return (
     <div className="min-h-screen py-12">
       <div className="container mx-auto px-4">

@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { useSeo } from '@/context/SeoContext';
 import { Textarea } from '@/components/ui/textarea';
 import { MapPin, Phone, Mail, Clock, MessageCircle, Send, CreditCard, Smartphone, Building } from 'lucide-react';
 
 const Contact = () => {
+  useSeo('contact');
   const [formData, setFormData] = useState({
     name: '',
     email: '',

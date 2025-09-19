@@ -5,6 +5,9 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { CurrencyProvider } from '@/context/CurrencyContext';
 import { SettingsProvider } from '@/context/SettingsContext';
 import { ProductsProvider } from '@/context/ProductsContext';
+import { BlogProvider } from '@/context/BlogContext';
+import { PopupProvider } from '@/context/PopupContext';
+import { SeoProvider } from '@/context/SeoContext';
 import { CartProvider } from '@/context/CartContext';
 import { CompareProvider } from '@/context/CompareContext';
 import Header from './components/Header';
@@ -23,6 +26,7 @@ const ProductDetail = lazy(() => import('./pages/ProductDetail'));
 
 // Additional pages
 const Blog = lazy(() => import('./pages/Blog'));
+const BlogPost = lazy(() => import('./pages/BlogPost'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const RefundPolicy = lazy(() => import('./pages/RefundPolicy'));
 const DMCA = lazy(() => import('./pages/DMCA'));
@@ -35,6 +39,7 @@ const TermsConditions = lazy(() => import('./pages/TermsConditions'));
 import PurchaseNotifications from './components/PurchaseNotifications';
 import FloatingElements from './components/FloatingElements';
 import FloatingCart from './components/FloatingCart';
+import PopupAnnouncement from './components/PopupAnnouncement';
 import ProductDashboard from './pages/ProductDashboard';
 
 const queryClient = new QueryClient();
@@ -42,8 +47,11 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ProductsProvider>
-      <SettingsProvider>
-        <CurrencyProvider>
+      <BlogProvider>
+        <PopupProvider>
+          <SeoProvider>
+            <SettingsProvider>
+              <CurrencyProvider>
           <CartProvider>
             <CompareProvider>
               <TooltipProvider>
@@ -66,6 +74,7 @@ const App = () => (
 
                           {/* Additional routes */}
                           <Route path="/blog" element={<Blog />} />
+                          <Route path="/blog/:slug" element={<BlogPost />} />
                           <Route path="/contact" element={<Contact />} />
                           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                           <Route path="/terms-conditions" element={<TermsConditions />} />
@@ -83,6 +92,7 @@ const App = () => (
                     </main>
                     <Footer />
                     <PurchaseNotifications />
+                    <PopupAnnouncement />
                     <FloatingElements />
                     <FloatingCart />
                   </div>
@@ -92,8 +102,11 @@ const App = () => (
           </CartProvider>
         </CurrencyProvider>
       </SettingsProvider>
-    </ProductsProvider>
-  </QueryClientProvider>
+    </SeoProvider>
+  </PopupProvider>
+</BlogProvider>
+</ProductsProvider>
+</QueryClientProvider>
 );
 
 export default App;

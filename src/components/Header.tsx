@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -22,6 +22,7 @@ const Header: React.FC = () => {
     { name: 'About', href: '/about' },
     { name: 'Contact', href: '/contact' },
     { name: 'Testimonials', href: '/testimonials' },
+    { name: 'Blog', href: '/blog' },
   ];
 
   const isActive = (path: string) => location.pathname === path;

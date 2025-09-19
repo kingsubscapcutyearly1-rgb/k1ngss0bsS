@@ -79,15 +79,14 @@ const FloatingCart: React.FC = () => {
     <>
       {/* Floating Cart Button */}
       {!isOpen && getTotalItems() > 0 && (
-        <div className="fixed bottom-5 right-5 z-40 sm:z-50">
+        <div className="fixed bottom-24 right-5 sm:bottom-28 z-40 sm:z-50">
           <Button
             onClick={() => setIsOpen(true)}
-            className="bg-primary hover:bg-primary/90 text-white rounded-full p-3 shadow-lg sm:shadow-xl hover:shadow-2xl transition-all"
-            size="icon"
+            className="relative flex h-14 w-14 items-center justify-center rounded-full bg-white text-primary shadow-xl ring-1 ring-primary/20 transition-transform duration-200 hover:scale-105 focus-visible:scale-105 dark:bg-zinc-900 dark:text-white dark:ring-primary/40"
             aria-label="Open cart"
           >
             <ShoppingCart className="w-6 h-6" />
-            <Badge className="absolute -top-2 -right-2 bg-red-500 text-white min-w-[1.5rem] h-6 rounded-full flex items-center justify-center p-0 text-xs font-bold">
+            <Badge className="absolute -top-1.5 -right-1.5 h-7 min-w-[1.75rem] rounded-full border-2 border-white bg-red-500 px-1 text-xs font-bold text-white shadow-md dark:border-zinc-900">
               {getTotalItems()}
             </Badge>
           </Button>
@@ -229,3 +228,4 @@ const FloatingCart: React.FC = () => {
 };
 
 export default FloatingCart;
+

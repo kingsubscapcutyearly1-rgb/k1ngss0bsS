@@ -1,4 +1,4 @@
-import { useSettings } from '@/context/SettingsContext';
+﻿import { useSettings } from '@/context/SettingsContext';
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { useCurrency } from "@/context/CurrencyContext";
 import { useCart } from "@/context/CartContext";
 import { useProductsContext } from "@/context/ProductsContext";
 import { useToast } from "@/components/ui/use-toast";
+import { useSeo } from "@/context/SeoContext";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 import { Product } from "@/data/products";
@@ -209,7 +210,7 @@ const ProductImage: React.FC<{
   loaded: boolean;
   errored: boolean;
 }> = ({ product, onLoad, onError, loaded, errored }) => (
-  <div className="relative group">
+  <div className="relative group max-w-[250px] sm:max-w-none mx-auto lg:mx-0">
     <div className="relative rounded-xl overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 ring-1 ring-black/5">
       <div className="aspect-square sm:aspect-[4/3] w-full flex items-center justify-center relative">
         {!loaded && !errored && (
@@ -224,7 +225,7 @@ const ProductImage: React.FC<{
           <img
             src={product.image}
             alt={`${product.name} product image`}
-            className={`max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-105 ${!loaded ? 'opacity-0' : 'opacity-100'}`}
+            className={`h-full w-full object-contain transition-transform duration-300 group-hover:scale-105 ${!loaded ? 'opacity-0' : 'opacity-100'}`}
             onLoad={onLoad}
             onError={onError}
             loading="lazy"
@@ -241,7 +242,8 @@ const ProductInfo: React.FC<{
   primaryCategory: string; 
   stockLabel: string; 
   isInStock: boolean;
-}> = ({ product, primaryCategory, stockLabel, isInStock }) => {
+  liveActivityItems: ActivityItem[];
+}> = ({ product, primaryCategory, stockLabel, isInStock, liveActivityItems }) => {
   // Generate random number of recent purchases for social proof
   const recentPurchases = Math.floor(Math.random() * 50) + 50;
   
@@ -592,9 +594,8 @@ const ProductBundle: React.FC<{
   product: ProductWithRating; 
   currentPrice: number;
   formatPrice: (price: number) => string;
-}> = ({ product, currentPrice, formatPrice }) => {
-  const relatedAddons = products.filter(p => p.category === 'addon' || p.category === 'accessory').slice(0, 2);
-  
+  relatedAddons: ProductWithRating[];
+}> = ({ product, currentPrice, formatPrice, relatedAddons }) => {
   if (relatedAddons.length === 0) return null;
   
   const bundlePrice = relatedAddons.reduce((sum, addon) => sum + (addon.price?.monthly || 0), 0);
@@ -958,6 +959,14 @@ const ProductDetail: React.FC = () => {
   const cart = useCart();
   const currencyCtx = useCurrency();
   const { products } = useProductsContext();
+  const productCollection = useMemo<ProductWithRating[]>(
+    () => (Array.isArray(products) ? (products as ProductWithRating[]) : []),
+    [products]
+  );
+  const bundleAddons = useMemo<ProductWithRating[]>(
+    () => productCollection.filter(p => p.category === 'addon' || p.category === 'accessory').slice(0, 2),
+    [productCollection]
+  );
   const { toast } = useToast();
   const [heroLoaded, setHeroLoaded] = useState(false);
   const [imageErrored, setImageErrored] = useState(false);
@@ -969,10 +978,9 @@ const ProductDetail: React.FC = () => {
   const { settings } = useSettings();
   const directWhatsApp = settings.whatsappDirectOrder;
   const whatsappNumberDigits = settings.whatsappNumber.replace(/\D/g, '') || '923276847960';
-  const showBreadcrumbs = settings.showBreadcrumbs !== false;
 
   // Use custom hook for product data
-  const { loading, product, selectedPlan, selectedDuration, setSelectedPlan, setSelectedDuration } = useProductData(id, products as ProductWithRating[]);
+  const { loading, product, selectedPlan, selectedDuration, setSelectedPlan, setSelectedDuration } = useProductData(id, productCollection as ProductWithRating[]);
   
   // Update URL when selection changes
   useEffect(() => {
@@ -1065,7 +1073,7 @@ const ProductDetail: React.FC = () => {
   const isActionDisabled = hasPlans && (!selectedPlan || !selectedDuration) || !isInStock;
   const primaryCategory = product?.category?.split(',')[0].trim() || "";
   const relatedProducts = product ? 
-    products.filter(p => p.category.includes(primaryCategory) && p.id !== product.id).slice(0, 3) 
+    productCollection.filter(p => p.category.includes(primaryCategory) && p.id !== product.id).slice(0, 3) 
     : [];
   
   // SEO meta tags
@@ -1312,12 +1320,22 @@ const ProductDetail: React.FC = () => {
   };
   
   // Loading/Error UI
+  useSeo('product-detail', product ? {
+
+    title: `${product.name} | Kings Subscriptions`,
+
+    description: product.description || product.longDescription || 'View premium subscription details, plans, and support information.',
+
+  } : undefined);
+
+
+
   if (loading) return (
     <div className="min-h-screen py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="animate-pulse">
           <div className="h-6 bg-gray-200 rounded w-1/4 mb-4"></div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mb-12">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-10 lg:gap-12 mb-8 md:mb-12">
             <div className="aspect-[4/3] bg-gray-200 rounded-xl"></div>
             <div className="space-y-4">
               <div className="h-8 bg-gray-200 rounded w-3/4"></div>
@@ -1345,7 +1363,7 @@ const ProductDetail: React.FC = () => {
   );
   
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-0 py-8">
+    <div className="min-h-screen bg-background pb-16 md:pb-0 py-6 md:py-10">
       {/* WhatsApp Form Modal */}
       <WhatsAppForm
         show={showWhatsAppForm}
@@ -1356,19 +1374,6 @@ const ProductDetail: React.FC = () => {
           : product.name}
         productPrice={formatPrice(currentPrice)}
       />
-      
-      {/* Breadcrumbs (toggleable) */}
-      {showBreadcrumbs && (
-        <nav aria-label="Breadcrumb" className="mb-4">
-          <ol className="flex text-sm text-muted-foreground">
-            <li><Link to="/">Home</Link></li>
-            <li className="mx-2">/</li>
-            <li><Link to={`/category/${primaryCategory}`}>{primaryCategory}</Link></li>
-            <li className="mx-2">/</li>
-            <li aria-current="page">{product.name}</li>
-          </ol>
-        </nav>
-      )}
       
       {/* SEO structured data */}
       <script
@@ -1399,7 +1404,7 @@ const ProductDetail: React.FC = () => {
       
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb with better back button */}
-        <div className="mb-8">
+        <div className="mb-6 md:mb-8">
           <Link to="/tools">
             <Button variant="ghost" className="pl-0">
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -1422,7 +1427,7 @@ const ProductDetail: React.FC = () => {
         </div>
         
         {/* Product Header */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mb-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-10 lg:gap-12 mb-8 md:mb-12">
           {/* Left: Product Image */}
           <ErrorBoundary>
             <ProductImage 
@@ -1442,6 +1447,7 @@ const ProductDetail: React.FC = () => {
                 primaryCategory={primaryCategory}
                 stockLabel={stockLabel}
                 isInStock={isInStock}
+                liveActivityItems={liveActivityItems}
               />
             </ErrorBoundary>
             
@@ -1451,6 +1457,7 @@ const ProductDetail: React.FC = () => {
                 product={product}
                 currentPrice={currentPrice}
                 formatPrice={formatPrice}
+                relatedAddons={bundleAddons}
               />
             </ErrorBoundary>
             
@@ -1564,4 +1571,6 @@ const ProductDetail: React.FC = () => {
 };
 
 export default ProductDetail;
+
+
 

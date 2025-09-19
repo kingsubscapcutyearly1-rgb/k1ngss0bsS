@@ -3,19 +3,23 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { 
-  Search, 
-  Filter, 
-  SortAsc, 
-  Sparkles, 
-  Shield, 
+import {
+  Search,
+  Filter,
+  SortAsc,
+  Sparkles,
+  Shield,
   Clock,
   Zap,
   ChevronDown,
-  X
+  X,
+  Grid3X3,
+  List
 } from 'lucide-react';
-import ProductCard from '@/components/ProductCard';
+import ProductCardSimple from '@/components/ProductCard';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useProducts } from '@/hooks/useProducts';
+import { useSeo } from '@/context/SeoContext';
 import {
   Select,
   SelectContent,
@@ -30,7 +34,9 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 interface Product {
   id: string;
@@ -45,11 +51,14 @@ interface Product {
 }
 
 const Tools: React.FC = () => {
+  useSeo('tools');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [sortBy, setSortBy] = useState('popular');
   const [priceRange, setPriceRange] = useState('all');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const isMobile = useIsMobile();
 
   // Fetch products from API
   const { data: productsData = [], isLoading, error } = useProducts() as { 
@@ -272,6 +281,18 @@ const Tools: React.FC = () => {
                 </div>
                 
                 <div className="flex gap-2 items-center">
+                  {/* View Mode Toggle - Only visible on mobile */}
+                  <div className="md:hidden">
+                    <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'grid' | 'list')}>
+                      <ToggleGroupItem value="grid" aria-label="Grid view" size="sm">
+                        <Grid3X3 className="h-4 w-4" />
+                      </ToggleGroupItem>
+                      <ToggleGroupItem value="list" aria-label="List view" size="sm">
+                        <List className="h-4 w-4" />
+                      </ToggleGroupItem>
+                    </ToggleGroup>
+                  </div>
+                  
                   <Button
                     variant="outline"
                     onClick={() => setIsFilterOpen(!isFilterOpen)}
@@ -385,9 +406,15 @@ const Tools: React.FC = () => {
 
         {/* Products Grid */}
         {filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+          <div className={cn(
+            "gap-3 mb-12",
+            // Enhanced mobile responsive grid: 2 columns in grid mode, 1 column in list mode, fallback to 1 col on very small screens
+            viewMode === 'grid'
+              ? "grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+              : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+          )}>
             {filteredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCardSimple key={product.id} product={product} viewMode={viewMode} />
             ))}
           </div>
         ) : (

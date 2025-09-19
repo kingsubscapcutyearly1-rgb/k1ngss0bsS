@@ -24,6 +24,7 @@ import WhatsAppButton from '@/components/WhatsAppButton';
 import { useProductsContext } from '@/context/ProductsContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import HowItWorks from './HowItWorks';
+import { useSeo } from '@/context/SeoContext';
 
 // Updated CountdownTimer (kept as is)
 const CountdownTimer = () => {
@@ -80,6 +81,7 @@ const MiniFAQ = () => {
 };
 
 const Home: React.FC = () => {
+  useSeo('home');
   const { products } = useProductsContext();
   const { formatPrice } = useCurrency();
   const featuredProducts = products.slice(0, 9);
@@ -93,7 +95,7 @@ const Home: React.FC = () => {
     <>
       <div className="min-h-screen">
         {/* Hero Section - Updated CTA text, fixed dark mode for WhatsApp button */}
-        <section className="relative bg-gradient-to-br from-primary/10 via-background to-secondary/10 py-20 overflow-hidden">
+        <section className="relative bg-gradient-to-br from-primary/10 via-background to-secondary/10 py-14 md:py-20 overflow-hidden">
           <div className="absolute inset-0 opacity-20">
             <div className="absolute top-20 left-10 animate-pulse">💰</div>
             <div className="absolute top-40 right-20 animate-bounce">🚀</div>
@@ -156,9 +158,9 @@ const Home: React.FC = () => {
         </section>
 
         {/* Solution Section - Kept same, updated "View All" text, fixed dark mode hover */}
-        <section className="py-20">
+        <section className="pt-10 pb-14 md:pt-16 md:pb-20">
           <div className="container mx-auto px-4">
-            <div className="text-center mb-16">
+            <div className="text-center mb-12 md:mb-16">
               <h2 className="text-4xl md:text-6xl font-bold mb-6">
                 <span className="bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
                   Introducing King Subscription
@@ -168,7 +170,7 @@ const Home: React.FC = () => {
                 The <strong>ONLY</strong> platform where successful entrepreneurs get premium tools at <span className="text-green-600 font-bold">50% OFF</span> without compromising on quality or features.
               </p>
             </div>
-            <div className="grid md:grid-cols-3 gap-8 mb-16">
+            <div className="grid md:grid-cols-3 gap-6 md:gap-8 mb-12 md:mb-16">
               <Card className="border-2 border-green-200 hover:border-green-400 transition-colors">
                 <CardHeader>
                   <div className="text-4xl mb-4">💰</div>

@@ -1,8 +1,10 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useSeo } from '@/context/SeoContext';
 import { Shield, FileText, Mail, AlertTriangle } from 'lucide-react';
 
 const DMCA: React.FC = () => {
+  useSeo('dmca');
   return (
     <div className="min-h-screen py-12">
       <div className="container mx-auto px-4 max-w-4xl">

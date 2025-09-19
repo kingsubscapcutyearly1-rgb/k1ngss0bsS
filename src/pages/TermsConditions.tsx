@@ -1,9 +1,11 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useSeo } from '@/context/SeoContext';
 import { Separator } from '@/components/ui/separator';
 import { Shield, FileText, Clock, AlertTriangle } from 'lucide-react';
 
 const TermsConditions = () => {
+  useSeo('terms-conditions');
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white dark:from-gray-900 dark:to-gray-800">
       {/* Hero Section */}
