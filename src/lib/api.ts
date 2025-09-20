@@ -1,7 +1,7 @@
 import { Product } from '@/data/products';
 
 const API_BASE_URL = process.env.NODE_ENV === 'production'
-  ? 'https://your-vercel-app.vercel.app'
+  ? '' // Use relative URLs for Vercel serverless functions
   : 'http://localhost:3001'; // Backend server runs on port 3001
 
 export interface AdminSettings {
