@@ -112,7 +112,7 @@ const ProductDashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   const saveProducts = async () => {
     try {
       setSaveStatus('saving');
-      setProductsContext([...allProducts]);
+      await setProductsContext([...allProducts]);
       setSaveStatus('success');
     } catch (error) {
       console.error('Error saving products:', error);
@@ -155,14 +155,14 @@ const ProductDashboard: React.FC<DashboardProps> = ({ onLogout }) => {
     }
   };
 
-  const handleBulkAction = (action: 'in-stock' | 'out-stock' | 'delete') => {
+  const handleBulkAction = async (action: 'in-stock' | 'out-stock' | 'delete') => {
     if (selectedProducts.length === 0) return;
 
     switch (action) {
       case 'delete': {
         if (window.confirm(`Delete ${selectedProducts.length} selected products?`)) {
           const next = allProducts.filter((product) => !selectedProducts.includes(product.id));
-          setProductsContext(next);
+          await setProductsContext(next);
           setSelectedProducts([]);
         }
         break;
@@ -171,7 +171,7 @@ const ProductDashboard: React.FC<DashboardProps> = ({ onLogout }) => {
         const next = allProducts.map((product) =>
           selectedProducts.includes(product.id) ? { ...product, stock: product.stock || true } : product
         );
-        setProductsContext(next);
+        await setProductsContext(next);
         setSelectedProducts([]);
         break;
       }
@@ -179,7 +179,7 @@ const ProductDashboard: React.FC<DashboardProps> = ({ onLogout }) => {
         const next = allProducts.map((product) =>
           selectedProducts.includes(product.id) ? { ...product, stock: false } : product
         );
-        setProductsContext(next);
+        await setProductsContext(next);
         setSelectedProducts([]);
         break;
       }
@@ -188,14 +188,14 @@ const ProductDashboard: React.FC<DashboardProps> = ({ onLogout }) => {
     }
   };
 
-  const deleteProduct = (productId: string) => {
+  const deleteProduct = async (productId: string) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       const next = allProducts.filter((product) => product.id !== productId);
-      setProductsContext(next);
+      await setProductsContext(next);
     }
   };
 
-  const duplicateProduct = (product: Product) => {
+  const duplicateProduct = async (product: Product) => {
     const newProduct: Product = {
       ...product,
       id: `${product.id}-copy-${Date.now()}`,
@@ -203,15 +203,15 @@ const ProductDashboard: React.FC<DashboardProps> = ({ onLogout }) => {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    setProductsContext([...allProducts, newProduct]);
+    await setProductsContext([...allProducts, newProduct]);
   };
 
-  const handleSaveProduct = (product: Product) => {
+  const handleSaveProduct = async (product: Product) => {
     if (editingProduct) {
       const next = allProducts.map((item) => (item.id === product.id ? product : item));
-      setProductsContext(next);
+      await setProductsContext(next);
     } else {
-      setProductsContext([...allProducts, product]);
+      await setProductsContext([...allProducts, product]);
     }
     setEditingProduct(null);
     setShowCreateForm(false);

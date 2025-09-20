@@ -1,14 +1,19 @@
-const express = require('express');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const Product = require('../models/Product');
+import express from 'express';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
 // Middleware to verify admin token
 const verifyAdmin = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
-  
+
   if (!token) {
     return res.status(401).json({ error: 'No token provided' });
   }
@@ -26,19 +31,10 @@ const verifyAdmin = (req, res, next) => {
 router.post('/login', async (req, res) => {
   try {
     const { password } = req.body;
-    const db = req.app.locals.db;
-    
-    const adminSetting = await db.get(
-      'SELECT setting_value FROM admin_settings WHERE setting_key = ?',
-      ['admin_password']
-    );
+    const settings = req.app.locals.settings;
 
-    if (!adminSetting) {
-      return res.status(401).json({ error: 'Admin not configured' });
-    }
+    const isValidPassword = await bcrypt.compare(password, settings.admin_password);
 
-    const isValidPassword = await bcrypt.compare(password, adminSetting.setting_value);
-    
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid password' });
     }
@@ -55,84 +51,34 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Get all products (admin view)
-router.get('/products', verifyAdmin, async (req, res) => {
-  try {
-    const db = req.app.locals.db;
-    const productModel = new Product(db);
-    const products = await productModel.getAll();
-    res.json(products);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Create new product
-router.post('/products', verifyAdmin, async (req, res) => {
-  try {
-    const db = req.app.locals.db;
-    const productModel = new Product(db);
-    const product = await productModel.create(req.body);
-    res.json(product);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Update product
-router.put('/products/:id', verifyAdmin, async (req, res) => {
-  try {
-    const db = req.app.locals.db;
-    const productModel = new Product(db);
-    const product = await productModel.update(req.params.id, req.body);
-    res.json(product);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Delete product
-router.delete('/products/:id', verifyAdmin, async (req, res) => {
-  try {
-    const db = req.app.locals.db;
-    const productModel = new Product(db);
-    await productModel.delete(req.params.id);
-    res.json({ message: 'Product deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // Get admin settings
-router.get('/settings', verifyAdmin, async (req, res) => {
+router.get('/settings', (req, res) => {
   try {
-    const db = req.app.locals.db;
-    const settings = await db.all('SELECT * FROM admin_settings');
-    
-    const settingsObj = {};
-    settings.forEach(setting => {
-      settingsObj[setting.setting_key] = setting.setting_value;
-    });
-    
-    res.json(settingsObj);
+    const settings = req.app.locals.settings;
+
+    // Return all settings except admin_password
+    const { admin_password, ...publicSettings } = settings;
+    res.json(publicSettings);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
 // Update admin settings
-router.post('/settings', verifyAdmin, async (req, res) => {
+router.post('/settings', (req, res) => {
   try {
-    const db = req.app.locals.db;
-    const settings = req.body;
+    const newSettings = req.body;
+    const currentSettings = req.app.locals.settings;
 
-    for (const [key, value] of Object.entries(settings)) {
-      await db.run(
-        `INSERT OR REPLACE INTO admin_settings (setting_key, setting_value, updated_at) 
-         VALUES (?, ?, CURRENT_TIMESTAMP)`,
-        [key, value]
-      );
-    }
+    // Update settings
+    const updatedSettings = { ...currentSettings, ...newSettings };
+
+    // Save to file
+    const settingsFile = path.join(__dirname, 'settings.json');
+    fs.writeFileSync(settingsFile, JSON.stringify(updatedSettings, null, 2));
+
+    // Update in memory
+    req.app.locals.settings = updatedSettings;
 
     res.json({ message: 'Settings updated successfully' });
   } catch (error) {
@@ -140,4 +86,55 @@ router.post('/settings', verifyAdmin, async (req, res) => {
   }
 });
 
-module.exports = router;
+// Get products
+router.get('/products', (req, res) => {
+  try {
+    const settings = req.app.locals.settings;
+    const products = settings.products || [
+      {
+        id: 1,
+        name: 'Premium Digital Tool',
+        price: 29.99,
+        description: 'High-quality digital tool for professionals',
+        category: 'Tools',
+        image: '/images/product1.jpg'
+      },
+      {
+        id: 2,
+        name: 'Advanced Software Suite',
+        price: 49.99,
+        description: 'Complete software solution for businesses',
+        category: 'Software',
+        image: '/images/product2.jpg'
+      }
+    ];
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update products
+router.post('/products', (req, res) => {
+  try {
+    const newProducts = req.body;
+    const currentSettings = req.app.locals.settings;
+
+    // Update products in settings
+    const updatedSettings = { ...currentSettings, products: newProducts };
+
+    // Save to file
+    const settingsFile = path.join(__dirname, 'settings.json');
+    fs.writeFileSync(settingsFile, JSON.stringify(updatedSettings, null, 2));
+
+    // Update in memory
+    req.app.locals.settings = updatedSettings;
+
+    res.json({ message: 'Products updated successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Export the router
+export default router;

@@ -62,7 +62,7 @@ const formatBlogDate = (value?: string) => {
 };
 
 const AdminDashboard: React.FC = () => {
-  const { settings, updateSettings } = useSettings();
+  const { settings, updateSettings, isLoading: settingsLoading, error: settingsError } = useSettings();
   const { products } = useProductsContext();
   const { posts: blogPosts, createPost, updatePost, deletePost, togglePublished, categories: blogCategories } = useBlogContext();
 
@@ -91,6 +91,9 @@ const AdminDashboard: React.FC = () => {
   const [heroTitle, setHeroTitle] = useState('STOP BLEEDING MONEY On Overpriced Software!');
   const [heroSubtitle, setHeroSubtitle] = useState('10,000+ Smart Entrepreneurs have already ditched expensive subscriptions...');
 
+  // Error and loading states from contexts
+  const popupError = usePopup().error;
+
   // Site Settings
   const [siteSettings, setSiteSettings] = useState({
     siteName: 'King Subscription',
@@ -118,7 +121,7 @@ const AdminDashboard: React.FC = () => {
   }, [settings]);
 
 // Popup/Announcement Settings
-  const { settings: popupSettings, updateSettings: persistPopupSettings, resetSettings: resetPopupSettings } = usePopup();
+  const { settings: popupSettings, updateSettings: persistPopupSettings, resetSettings: resetPopupSettings, isLoading: popupLoading } = usePopup();
   const [popupDraft, setPopupDraft] = useState(popupSettings);
   const popupPagesSelected = useMemo(() => new Set(popupDraft.pages), [popupDraft.pages]);
 
@@ -177,9 +180,15 @@ const AdminDashboard: React.FC = () => {
     }));
   }, []);
 
-  const handlePopupSave = useCallback(() => {
+  const handlePopupSave = useCallback(async () => {
     const { metrics, lastDismissedAt, lastShownAt, ...plain } = popupDraft;
-    persistPopupSettings(plain);
+    try {
+      await persistPopupSettings(plain);
+      alert('Popup settings saved successfully!');
+    } catch (error) {
+      console.error('Failed to save popup settings:', error);
+      alert('Failed to save popup settings. Please try again.');
+    }
   }, [persistPopupSettings, popupDraft]);
 
   const handlePopupReset = useCallback(() => {
@@ -316,8 +325,9 @@ const AdminDashboard: React.FC = () => {
     };
   }, [blogPosts, popupSettings.metrics, products]);
 
-const handleSaveSettings = () => {
-    updateSettings({
+const handleSaveSettings = async () => {
+  try {
+    await updateSettings({
       whatsappNumber: whatsappNumber.trim(),
       whatsappDirectOrder,
       enablePurchaseNotifications: siteSettings.enablePurchaseNotifications,
@@ -325,9 +335,12 @@ const handleSaveSettings = () => {
       showDiscountBadges: siteSettings.showDiscountBadges,
     });
 
-    // In a real app, this would also persist to a backend/database
     alert('Settings saved successfully!');
-  };
+  } catch (error) {
+    console.error('Failed to save settings:', error);
+    alert('Failed to save settings. Please try again.');
+  }
+};
 
   const handleAddProduct = () => {
     // Navigate to add product form
@@ -441,11 +454,70 @@ const handleSaveSettings = () => {
               Manage your subscription business with complete control
             </p>
           </div>
-          <Button onClick={handleSaveSettings} className="bg-green-600 hover:bg-green-700">
+          <Button onClick={handleSaveSettings} className="bg-green-600 hover:bg-green-700" disabled={settingsLoading || popupLoading}>
             <Save className="mr-2 h-4 w-4" />
-            Save All Changes
+            {(settingsLoading || popupLoading) ? 'Saving...' : 'Save All Changes'}
           </Button>
         </div>
+
+        {/* Loading Indicator */}
+        {(settingsLoading || popupLoading) && (
+          <div className="mb-6">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="animate-spin h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    Loading settings from server...
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error Alerts */}
+        {(settingsError || popupError) && (
+          <div className="mb-6 space-y-2">
+            {settingsError && (
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                      <strong>Settings Warning:</strong> {settingsError}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {popupError && (
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                      <strong>Popup Warning:</strong> {popupError}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <Tabs defaultValue="settings" className="space-y-6">
           <TabsList className="grid w-full grid-cols-7">
@@ -646,7 +718,7 @@ const handleSaveSettings = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <Label>Maintenance Mode</Label>
-                      <p className="text-sm text-gray-500 text-red-600">⚠️ Will disable the site for visitors</p>
+                      <p className="text-sm text-red-600">⚠️ Will disable the site for visitors</p>
                     </div>
                     <Switch
                       checked={siteSettings.maintenanceMode}
@@ -780,8 +852,10 @@ const handleSaveSettings = () => {
                 <p className="text-sm text-muted-foreground">Control the promotional message, targeting, and frequency without touching code.</p>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={handlePopupReset}>Reset</Button>
-                <Button onClick={handlePopupSave}>Save Changes</Button>
+                <Button variant="outline" onClick={handlePopupReset} disabled={popupLoading}>Reset</Button>
+                <Button onClick={handlePopupSave} disabled={popupLoading}>
+                  {popupLoading ? 'Saving...' : 'Save Changes'}
+                </Button>
               </div>
             </div>
 

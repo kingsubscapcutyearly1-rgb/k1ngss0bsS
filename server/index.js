@@ -1,11 +1,52 @@
-const express = require('express');
-const cors = require('cors');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+import express from 'express';
+import cors from 'cors';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import adminRoutes from './routes/admin.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Simple file-based storage for testing
+const SETTINGS_FILE = path.join(__dirname, 'settings.json');
+
+// Initialize storage
+const initializeStorage = () => {
+  if (!fs.existsSync(SETTINGS_FILE)) {
+    const defaultSettings = {
+      admin_password: bcrypt.hashSync('KingSubsAdmin2025!', 10),
+      whatsappNumber: '+923276847960',
+      whatsappDirectOrder: false,
+      enablePurchaseNotifications: true,
+      enableFloatingCart: true,
+      showDiscountBadges: true,
+      showBreadcrumbs: true,
+      popupSettings: {
+        enabled: true,
+        title: 'Limited Time Offer',
+        message: 'Get 10% off when you order on WhatsApp within the next 10 minutes.',
+        buttonText: 'Order on WhatsApp',
+        buttonHref: 'https://wa.me/923276847960?text=I%20want%20to%20claim%20the%20limited%20time%20offer',
+        showTimer: true,
+        timerDuration: 10,
+        trigger: 'delay',
+        delaySeconds: 6,
+        frequency: 'once-per-session',
+        theme: 'dark',
+        pages: ['/', '/tools', '/product/:id']
+      }
+    };
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(defaultSettings, null, 2));
+  }
+  return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+};
 
 // Middleware
 app.use(cors());
@@ -30,6 +71,8 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // Routes
+app.use('/api/admin', adminRoutes);
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'Server is running', timestamp: new Date().toISOString() });
 });
@@ -114,9 +157,20 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong!' });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+// Start server with storage initialization
+const startServer = () => {
+  try {
+    const settings = initializeStorage();
+    app.locals.settings = settings;
 
-module.exports = app;
+    app.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+      console.log(`File-based storage initialized`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+startServer();

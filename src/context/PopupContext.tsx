@@ -1,4 +1,5 @@
 ﻿import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { apiClient, AdminSettings } from '@/lib/api';
 
 export type PopupTrigger = 'delay' | 'scroll' | 'exit-intent';
 export type PopupFrequency = 'always' | 'once-per-session' | 'once-per-day';
@@ -30,12 +31,15 @@ export interface PopupState extends PopupSettings {
 
 interface PopupContextValue {
   settings: PopupState;
-  updateSettings: (changes: Partial<PopupSettings>) => void;
+  updateSettings: (changes: Partial<PopupSettings>) => Promise<void>;
   updateState: (changes: Partial<PopupState>) => void;
   resetSettings: () => void;
   recordImpression: () => void;
   recordClick: () => void;
   recordDismissal: () => void;
+  isLoading: boolean;
+  error: string | null;
+  loadSettings: () => Promise<void>;
 }
 
 const POPUP_STORAGE_KEY = 'ks_popup_settings_v1';
@@ -85,22 +89,85 @@ const PopupContext = createContext<PopupContextValue | undefined>(undefined);
 
 export const PopupProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<PopupState>(() => readStoredPopupState());
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // Load settings from server on mount
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  // Persist to localStorage as backup (fallback)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
       window.localStorage.setItem(POPUP_STORAGE_KEY, JSON.stringify(settings));
     } catch (error) {
-      console.error('Failed to persist popup settings:', error);
+      console.error('Failed to persist popup settings to localStorage:', error);
     }
   }, [settings]);
 
-  const updateSettings = useCallback((changes: Partial<PopupSettings>) => {
-    setSettings((prev) => ({
-      ...prev,
-      ...changes,
-    }));
-  }, []);
+  const loadSettings = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const serverSettings = await apiClient.getAdminSettings();
+
+      if (serverSettings.popupSettings) {
+        const popupSettings = serverSettings.popupSettings;
+        const newSettings: PopupState = {
+          ...defaultPopupState,
+          ...popupSettings,
+          metrics: settings.metrics, // Keep local metrics
+        };
+        setSettings(newSettings);
+      }
+    } catch (error) {
+      console.error('Failed to load popup settings from server:', error);
+      setError('Failed to load popup settings from server. Using local settings.');
+      // Keep existing localStorage settings as fallback
+    } finally {
+      setIsLoading(false);
+    }
+  }, [settings.metrics]);
+
+  const updateSettings = useCallback(async (changes: Partial<PopupSettings>) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const newSettings = { ...settings, ...changes };
+
+      // Prepare settings for server
+      const serverSettings: AdminSettings = {
+        popupSettings: {
+          enabled: newSettings.enabled,
+          title: newSettings.title,
+          message: newSettings.message,
+          buttonText: newSettings.buttonText,
+          buttonHref: newSettings.buttonHref,
+          showTimer: newSettings.showTimer,
+          timerDuration: newSettings.timerDuration,
+          trigger: newSettings.trigger,
+          delaySeconds: newSettings.delaySeconds,
+          frequency: newSettings.frequency,
+          theme: newSettings.theme,
+          pages: newSettings.pages,
+        },
+      };
+
+      await apiClient.updateAdminSettings(serverSettings);
+      setSettings(newSettings);
+    } catch (error) {
+      console.error('Failed to update popup settings on server:', error);
+      setError('Failed to save popup settings to server. Changes saved locally only.');
+      // Still update local state even if server update fails
+      setSettings((prev) => ({ ...prev, ...changes }));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [settings]);
 
   const updateState = useCallback((changes: Partial<PopupState>) => {
     setSettings((prev) => ({
@@ -157,7 +224,10 @@ export const PopupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     recordImpression,
     recordClick,
     recordDismissal,
-  }), [recordClick, recordDismissal, recordImpression, resetSettings, settings, updateSettings, updateState]);
+    isLoading,
+    error,
+    loadSettings,
+  }), [recordClick, recordDismissal, recordImpression, resetSettings, settings, updateSettings, updateState, isLoading, error, loadSettings]);
 
   return <PopupContext.Provider value={value}>{children}</PopupContext.Provider>;
 };

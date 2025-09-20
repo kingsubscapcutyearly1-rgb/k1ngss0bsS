@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { siteConfig } from '@/data/site-config';
+import { apiClient, AdminSettings } from '@/lib/api';
 
 export interface SiteSettings {
   whatsappNumber: string;
@@ -12,8 +13,11 @@ export interface SiteSettings {
 
 interface SettingsContextValue {
   settings: SiteSettings;
-  updateSettings: (changes: Partial<SiteSettings>) => void;
+  updateSettings: (changes: Partial<SiteSettings>) => Promise<void>;
   resetSettings: () => void;
+  isLoading: boolean;
+  error: string | null;
+  loadSettings: () => Promise<void>;
 }
 
 const SETTINGS_STORAGE_KEY = 'ks_settings_v1';
@@ -54,25 +58,92 @@ const readStoredSettings = (): SiteSettings => {
 
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<SiteSettings>(() => readStoredSettings());
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // Load settings from server on mount
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  // Persist to localStorage as backup (fallback)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
       window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
     } catch (error) {
-      console.error('Failed to persist settings:', error);
+      console.error('Failed to persist settings to localStorage:', error);
     }
   }, [settings]);
 
-  const updateSettings = useCallback((changes: Partial<SiteSettings>) => {
-    setSettings((prev) => ({ ...prev, ...changes }));
+  const loadSettings = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const serverSettings = await apiClient.getAdminSettings();
+
+      // Convert server settings to client format
+      const clientSettings: SiteSettings = {
+        whatsappNumber: serverSettings.whatsappNumber || defaultSettings.whatsappNumber,
+        whatsappDirectOrder: serverSettings.whatsappDirectOrder ?? defaultSettings.whatsappDirectOrder,
+        enablePurchaseNotifications: serverSettings.enablePurchaseNotifications ?? defaultSettings.enablePurchaseNotifications,
+        enableFloatingCart: serverSettings.enableFloatingCart ?? defaultSettings.enableFloatingCart,
+        showDiscountBadges: serverSettings.showDiscountBadges ?? defaultSettings.showDiscountBadges,
+        showBreadcrumbs: serverSettings.showBreadcrumbs ?? defaultSettings.showBreadcrumbs,
+      };
+
+      setSettings(clientSettings);
+    } catch (error) {
+      console.error('Failed to load settings from server:', error);
+      setError('Failed to load settings from server. Using local settings.');
+      // Keep existing localStorage settings as fallback
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  const updateSettings = useCallback(async (changes: Partial<SiteSettings>) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const newSettings = { ...settings, ...changes };
+
+      // Prepare settings for server
+      const serverSettings: AdminSettings = {
+        whatsappNumber: newSettings.whatsappNumber,
+        whatsappDirectOrder: newSettings.whatsappDirectOrder,
+        enablePurchaseNotifications: newSettings.enablePurchaseNotifications,
+        enableFloatingCart: newSettings.enableFloatingCart,
+        showDiscountBadges: newSettings.showDiscountBadges,
+        showBreadcrumbs: newSettings.showBreadcrumbs,
+      };
+
+      await apiClient.updateAdminSettings(serverSettings);
+      setSettings(newSettings);
+    } catch (error) {
+      console.error('Failed to update settings on server:', error);
+      setError('Failed to save settings to server. Changes saved locally only.');
+      // Still update local state even if server update fails
+      setSettings((prev) => ({ ...prev, ...changes }));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [settings]);
 
   const resetSettings = useCallback(() => {
     setSettings(defaultSettings);
   }, []);
 
-  const value = useMemo<SettingsContextValue>(() => ({ settings, updateSettings, resetSettings }), [settings, updateSettings, resetSettings]);
+  const value = useMemo<SettingsContextValue>(() => ({
+    settings,
+    updateSettings,
+    resetSettings,
+    isLoading,
+    error,
+    loadSettings
+  }), [settings, updateSettings, resetSettings, isLoading, error, loadSettings]);
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 };
