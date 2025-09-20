@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { products as defaultProducts, Product } from '@/data/products';
-import { apiClient } from '@/lib/api';
+import { apiClient, crossBrowserSync } from '@/lib/api';
 
 type ProductsContextValue = {
   products: Product[];
@@ -48,15 +48,31 @@ export const ProductsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     loadProducts();
   }, []);
 
-  // Persist to localStorage as backup (fallback)
+  // Persist to localStorage and sync across browser tabs
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
+      // Save to localStorage
       window.localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(products));
+
+      // Sync across browser tabs
+      crossBrowserSync.syncData('admin_products', products);
     } catch (error) {
-      console.error('Failed to persist products to localStorage:', error);
+      console.error('Failed to persist products:', error);
     }
   }, [products]);
+
+  // Listen for changes from other browser tabs
+  useEffect(() => {
+    const unsubscribe = crossBrowserSync.listenForChanges('admin_products', (data) => {
+      if (data && !crossBrowserSync.isFromCurrentSession(data)) {
+        console.log('🔄 Products synced from another tab');
+        setProductsState(data);
+      }
+    });
+
+    return unsubscribe;
+  }, []);
 
   const loadProducts = useCallback(async () => {
     setIsLoading(true);

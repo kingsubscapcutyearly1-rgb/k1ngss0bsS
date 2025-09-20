@@ -4,6 +4,117 @@ const API_BASE_URL = process.env.NODE_ENV === 'production'
   ? '' // Use relative URLs for Vercel serverless functions
   : 'http://localhost:3001'; // Backend server runs on port 3001
 
+// Cross-browser sync utility using BroadcastChannel and localStorage
+class CrossBrowserSync {
+  private channels: Map<string, BroadcastChannel> = new Map();
+  private listeners: Map<string, Set<(data: any) => void>> = new Map();
+
+  constructor() {
+    // Listen for storage events (cross-tab sync)
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', (event) => {
+        if (event.key?.startsWith('sync_')) {
+          const key = event.key.replace('sync_', '');
+          const data = event.newValue ? JSON.parse(event.newValue) : null;
+          this.notifyListeners(key, data);
+        }
+      });
+    }
+  }
+
+  private getChannel(key: string): BroadcastChannel {
+    if (!this.channels.has(key)) {
+      if (typeof BroadcastChannel !== 'undefined') {
+        const channel = new BroadcastChannel(`admin_sync_${key}`);
+        channel.onmessage = (event) => {
+          this.notifyListeners(key, event.data);
+        };
+        this.channels.set(key, channel);
+      }
+    }
+    return this.channels.get(key)!;
+  }
+
+  private notifyListeners(key: string, data: any) {
+    const keyListeners = this.listeners.get(key);
+    if (keyListeners) {
+      keyListeners.forEach(callback => {
+        try {
+          callback(data);
+        } catch (error) {
+          console.error('Error in sync listener:', error);
+        }
+      });
+    }
+  }
+
+  async syncData(key: string, data: any) {
+    const syncData = {
+      data,
+      timestamp: Date.now(),
+      sessionId: this.getSessionId()
+    };
+
+    // Save to localStorage (cross-tab sync)
+    localStorage.setItem(`sync_${key}`, JSON.stringify(syncData));
+
+    // Broadcast to other tabs (same browser)
+    const channel = this.getChannel(key);
+    if (channel) {
+      channel.postMessage(syncData);
+    }
+
+    console.log(`🔄 Synced ${key} across browser tabs`);
+  }
+
+  async getData(key: string) {
+    try {
+      const stored = localStorage.getItem(`sync_${key}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return parsed.data;
+      }
+    } catch (error) {
+      console.error('Error reading sync data:', error);
+    }
+    return null;
+  }
+
+  listenForChanges(key: string, callback: (data: any) => void) {
+    if (!this.listeners.has(key)) {
+      this.listeners.set(key, new Set());
+    }
+    this.listeners.get(key)!.add(callback);
+
+    // Return cleanup function
+    return () => {
+      const keyListeners = this.listeners.get(key);
+      if (keyListeners) {
+        keyListeners.delete(callback);
+        if (keyListeners.size === 0) {
+          this.listeners.delete(key);
+        }
+      }
+    };
+  }
+
+  private getSessionId(): string {
+    let sessionId = sessionStorage.getItem('admin_session_id');
+    if (!sessionId) {
+      sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      sessionStorage.setItem('admin_session_id', sessionId);
+    }
+    return sessionId;
+  }
+
+  // Check if data is from current session (to avoid echo)
+  isFromCurrentSession(data: any): boolean {
+    return data.sessionId === this.getSessionId();
+  }
+}
+
+export const crossBrowserSync = new CrossBrowserSync();
+
 export interface AdminSettings {
   whatsappNumber?: string;
   whatsappDirectOrder?: boolean;

@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { siteConfig } from '@/data/site-config';
-import { apiClient, AdminSettings } from '@/lib/api';
+import { apiClient, AdminSettings, crossBrowserSync } from '@/lib/api';
 
 export interface SiteSettings {
   whatsappNumber: string;
@@ -66,15 +66,31 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     loadSettings();
   }, []);
 
-  // Persist to localStorage as backup (fallback)
+  // Persist to localStorage and sync across browser tabs
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
+      // Save to localStorage
       window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+
+      // Sync across browser tabs
+      crossBrowserSync.syncData('admin_settings', settings);
     } catch (error) {
-      console.error('Failed to persist settings to localStorage:', error);
+      console.error('Failed to persist settings:', error);
     }
   }, [settings]);
+
+  // Listen for changes from other browser tabs
+  useEffect(() => {
+    const unsubscribe = crossBrowserSync.listenForChanges('admin_settings', (data) => {
+      if (data && !crossBrowserSync.isFromCurrentSession(data)) {
+        console.log('🔄 Settings synced from another tab');
+        setSettings(data);
+      }
+    });
+
+    return unsubscribe;
+  }, []);
 
   const loadSettings = useCallback(async () => {
     setIsLoading(true);

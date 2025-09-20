@@ -1,5 +1,5 @@
 ﻿import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { apiClient, AdminSettings } from '@/lib/api';
+import { apiClient, AdminSettings, crossBrowserSync } from '@/lib/api';
 
 export type PopupTrigger = 'delay' | 'scroll' | 'exit-intent';
 export type PopupFrequency = 'always' | 'once-per-session' | 'once-per-day';
@@ -97,15 +97,31 @@ export const PopupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     loadSettings();
   }, []);
 
-  // Persist to localStorage as backup (fallback)
+  // Persist to localStorage and sync across browser tabs
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
+      // Save to localStorage
       window.localStorage.setItem(POPUP_STORAGE_KEY, JSON.stringify(settings));
+
+      // Sync across browser tabs
+      crossBrowserSync.syncData('admin_popup', settings);
     } catch (error) {
-      console.error('Failed to persist popup settings to localStorage:', error);
+      console.error('Failed to persist popup settings:', error);
     }
   }, [settings]);
+
+  // Listen for changes from other browser tabs
+  useEffect(() => {
+    const unsubscribe = crossBrowserSync.listenForChanges('admin_popup', (data) => {
+      if (data && !crossBrowserSync.isFromCurrentSession(data)) {
+        console.log('🔄 Popup settings synced from another tab');
+        setSettings(data);
+      }
+    });
+
+    return unsubscribe;
+  }, []);
 
   const loadSettings = useCallback(async () => {
     setIsLoading(true);
