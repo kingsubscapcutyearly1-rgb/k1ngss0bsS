@@ -363,7 +363,7 @@ const AdminDashboard: React.FC = () => {
     setBlogMessage('');
   };
 
-  const handleBlogSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleBlogSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!blogForm.title.trim()) {
       setBlogMessage('Title is required.');
@@ -399,19 +399,24 @@ const AdminDashboard: React.FC = () => {
       published: blogForm.published,
     };
 
-    if (editingBlogSlug) {
-      const updated = updatePost(editingBlogSlug, input);
-      if (!updated) {
-        setBlogMessage('Unable to update blog post.');
-        return;
+    try {
+      if (editingBlogSlug) {
+        const updated = await updatePost(editingBlogSlug, input);
+        if (!updated) {
+          setBlogMessage('Unable to update blog post.');
+          return;
+        }
+        setBlogMessage('Blog post updated successfully.');
+      } else {
+        await createPost(input);
+        setBlogMessage(blogForm.published ? 'Blog post published successfully.' : 'Blog post saved as draft.');
       }
-      setBlogMessage('Blog post updated successfully.');
-    } else {
-      createPost(input);
-      setBlogMessage(blogForm.published ? 'Blog post published successfully.' : 'Blog post saved as draft.');
-    }
 
-    handleResetBlogForm();
+      handleResetBlogForm();
+    } catch (error) {
+      console.error('Failed to save blog post:', error);
+      setBlogMessage('Failed to save blog post. Please try again.');
+    }
   };
 
   const handleEditBlogPost = (slug: string) => {
@@ -419,19 +424,29 @@ const AdminDashboard: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleDeleteBlogPost = (slug: string) => {
+  const handleDeleteBlogPost = async (slug: string) => {
     if (confirm('Delete this blog post?')) {
-      deletePost(slug);
-      if (editingBlogSlug === slug) {
-        handleResetBlogForm();
+      try {
+        await deletePost(slug);
+        if (editingBlogSlug === slug) {
+          handleResetBlogForm();
+        }
+        setBlogMessage('Blog post deleted.');
+      } catch (error) {
+        console.error('Failed to delete blog post:', error);
+        setBlogMessage('Failed to delete blog post. Please try again.');
       }
-      setBlogMessage('Blog post deleted.');
     }
   };
 
-  const handleTogglePublishBlog = (slug: string) => {
-    togglePublished(slug);
-    setBlogMessage('Blog post visibility updated.');
+  const handleTogglePublishBlog = async (slug: string) => {
+    try {
+      await togglePublished(slug);
+      setBlogMessage('Blog post visibility updated.');
+    } catch (error) {
+      console.error('Failed to toggle blog post publish status:', error);
+      setBlogMessage('Failed to update blog post visibility. Please try again.');
+    }
   };
 
   const blogStats = {

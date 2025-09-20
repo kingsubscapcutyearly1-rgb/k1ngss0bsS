@@ -1,4 +1,5 @@
 ﻿import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { SeoSettingsService } from '@/lib/supabase';
 
 export type SeoPageKey =
   | 'home'
@@ -30,8 +31,6 @@ interface SeoContextValue {
   resetAll: () => void;
   getSeoFor: (page: SeoPageKey) => PageSeo;
 }
-
-const SEO_STORAGE_KEY = 'ks_seo_settings_v1';
 
 const defaultSeo: Record<SeoPageKey, PageSeo> = {
   home: {
@@ -94,57 +93,89 @@ const defaultSeo: Record<SeoPageKey, PageSeo> = {
   },
 };
 
-const readStoredSeo = (): Record<SeoPageKey, PageSeo> => {
-  if (typeof window === 'undefined') {
-    return defaultSeo;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(SEO_STORAGE_KEY);
-    if (!raw) {
-      return defaultSeo;
-    }
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') {
-      return defaultSeo;
-    }
-    return { ...defaultSeo, ...parsed } as Record<SeoPageKey, PageSeo>;
-  } catch (error) {
-    console.error('Failed to read SEO configuration:', error);
-    return defaultSeo;
-  }
-};
-
 const SeoContext = createContext<SeoContextValue | undefined>(undefined);
 
 export const SeoProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [seoMap, setSeoMap] = useState<Record<SeoPageKey, PageSeo>>(() => readStoredSeo());
+  const [seoMap, setSeoMap] = useState<Record<SeoPageKey, PageSeo>>(defaultSeo);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Load SEO settings from Supabase on mount
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    loadSeoSettings();
+  }, []);
+
+  // Subscribe to real-time changes from Supabase
+  useEffect(() => {
+    const unsubscribe = SeoSettingsService.subscribeToChanges((supabaseSettings) => {
+      console.log('🔄 SEO settings synced from Supabase (cross-browser sync)');
+      const mergedSettings = { ...defaultSeo, ...supabaseSettings };
+      setSeoMap(mergedSettings);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  const loadSeoSettings = useCallback(async () => {
+    setIsLoading(true);
     try {
-      window.localStorage.setItem(SEO_STORAGE_KEY, JSON.stringify(seoMap));
+      const supabaseSettings = await SeoSettingsService.getSeoSettings();
+      const mergedSettings = { ...defaultSeo, ...supabaseSettings };
+      setSeoMap(mergedSettings);
+      console.log('✅ SEO settings loaded from Supabase');
     } catch (error) {
-      console.error('Failed to persist SEO configuration:', error);
+      console.error('Failed to load SEO settings from Supabase:', error);
+      setSeoMap(defaultSeo);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const updatePageSeo = useCallback(async (page: SeoPageKey, seo: PageSeo) => {
+    try {
+      const newSeoMap = { ...seoMap, [page]: seo };
+      const success = await SeoSettingsService.updateSeoSettings(newSeoMap);
+
+      if (success) {
+        setSeoMap(newSeoMap);
+        console.log('✅ SEO settings updated in Supabase and synced across browsers');
+      } else {
+        throw new Error('Failed to update SEO settings in database');
+      }
+    } catch (error) {
+      console.error('Failed to update SEO settings:', error);
+      // Don't update local state if database update fails
     }
   }, [seoMap]);
 
-  const updatePageSeo = useCallback((page: SeoPageKey, seo: PageSeo) => {
-    setSeoMap((prev) => ({
-      ...prev,
-      [page]: seo,
-    }));
-  }, []);
+  const resetPageSeo = useCallback(async (page: SeoPageKey) => {
+    try {
+      const newSeoMap = { ...seoMap, [page]: defaultSeo[page] };
+      const success = await SeoSettingsService.updateSeoSettings(newSeoMap);
 
-  const resetPageSeo = useCallback((page: SeoPageKey) => {
-    setSeoMap((prev) => ({
-      ...prev,
-      [page]: defaultSeo[page],
-    }));
-  }, []);
+      if (success) {
+        setSeoMap(newSeoMap);
+        console.log('✅ SEO page reset in Supabase');
+      } else {
+        throw new Error('Failed to reset SEO page in database');
+      }
+    } catch (error) {
+      console.error('Failed to reset SEO page:', error);
+    }
+  }, [seoMap]);
 
-  const resetAll = useCallback(() => {
-    setSeoMap(defaultSeo);
+  const resetAll = useCallback(async () => {
+    try {
+      const success = await SeoSettingsService.updateSeoSettings(defaultSeo);
+
+      if (success) {
+        setSeoMap(defaultSeo);
+        console.log('✅ All SEO settings reset in Supabase');
+      } else {
+        throw new Error('Failed to reset all SEO settings in database');
+      }
+    } catch (error) {
+      console.error('Failed to reset all SEO settings:', error);
+    }
   }, []);
 
   const getSeoFor = useCallback((page: SeoPageKey) => seoMap[page] ?? defaultSeo[page], [seoMap]);

@@ -1,19 +1,18 @@
 ﻿import React, { createContext, useContext, useMemo, useState, useEffect, useCallback } from "react";
 import { defaultBlogPosts } from "@/data/blog-posts";
 import { BlogPost, BlogPostInput } from "@/types/blog";
+import { BlogPostsService } from "@/lib/supabase";
 
 interface BlogContextValue {
   posts: BlogPost[];
   publishedPosts: BlogPost[];
   categories: string[];
-  createPost: (input: BlogPostInput) => BlogPost;
-  updatePost: (slug: string, updates: BlogPostInput) => BlogPost | undefined;
-  deletePost: (slug: string) => void;
-  togglePublished: (slug: string) => void;
+  createPost: (input: BlogPostInput) => Promise<BlogPost>;
+  updatePost: (slug: string, updates: BlogPostInput) => Promise<BlogPost | undefined>;
+  deletePost: (slug: string) => Promise<void>;
+  togglePublished: (slug: string) => Promise<void>;
   getPostBySlug: (slug: string) => BlogPost | undefined;
 }
-
-const BLOG_STORAGE_KEY = "ks_blog_posts_v1";
 
 const slugify = (value: string): string =>
   value
@@ -36,26 +35,6 @@ const ensureUniqueSlug = (slug: string, taken: string[]): string => {
   return next;
 };
 
-const readStoredPosts = (): BlogPost[] => {
-  if (typeof window === "undefined") {
-    return defaultBlogPosts;
-  }
-  try {
-    const raw = window.localStorage.getItem(BLOG_STORAGE_KEY);
-    if (!raw) {
-      return defaultBlogPosts;
-    }
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      return defaultBlogPosts;
-    }
-    return parsed as BlogPost[];
-  } catch (error) {
-    console.error("Failed to parse stored blog posts", error);
-    return defaultBlogPosts;
-  }
-};
-
 const BlogContext = createContext<BlogContextValue | undefined>(undefined);
 
 const normaliseTags = (tags: string[]): string[] =>
@@ -72,29 +51,56 @@ const generateId = (): string => {
 };
 
 export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [posts, setPosts] = useState<BlogPost[]>(() => {
-    const stored = readStoredPosts();
-    if (stored.length === 0) {
-      return defaultBlogPosts;
-    }
-    return stored;
-  });
+  const [posts, setPosts] = useState<BlogPost[]>(defaultBlogPosts);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Load blog posts from Supabase on mount
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(BLOG_STORAGE_KEY, JSON.stringify(posts));
-    } catch (error) {
-      console.error("Failed to persist blog posts", error);
-    }
-  }, [posts]);
+    loadBlogPosts();
+  }, []);
 
-  const createPost = useCallback((input: BlogPostInput): BlogPost => {
+  // Subscribe to real-time changes from Supabase
+  useEffect(() => {
+    const unsubscribe = BlogPostsService.subscribeToChanges((supabasePosts) => {
+      console.log('🔄 Blog posts synced from Supabase (cross-browser sync)');
+      const clientPosts = supabasePosts.map(BlogPostsService.convertToClientFormat);
+      setPosts(clientPosts);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  const loadBlogPosts = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const supabasePosts = await BlogPostsService.getBlogPosts();
+      if (supabasePosts && supabasePosts.length > 0) {
+        const clientPosts = supabasePosts.map(BlogPostsService.convertToClientFormat);
+        setPosts(clientPosts);
+        console.log('✅ Blog posts loaded from Supabase');
+      } else {
+        // If no posts in database, use default posts and sync them
+        console.log('📝 No blog posts in database, using defaults');
+        setPosts(defaultBlogPosts);
+
+        // Sync default posts to database
+        const dbPosts = defaultBlogPosts.map(BlogPostsService.convertToDatabaseFormat);
+        await BlogPostsService.updateBlogPosts(dbPosts);
+      }
+    } catch (error) {
+      console.error('Failed to load blog posts from Supabase:', error);
+      setPosts(defaultBlogPosts);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const createPost = useCallback(async (input: BlogPostInput): Promise<BlogPost> => {
     const now = new Date().toISOString();
     const safeTags = normaliseTags(input.tags);
     const existingSlugs = posts.map((post) => post.slug);
     const baseSlug = slugify(input.slug || input.title);
-    const slug = ensureUniqueSlug(baseSlug || generateId(), existingSlugs);
+    const slug = ensureUniqueSlug(baseSlug, existingSlugs);
     const newPost: BlogPost = {
       id: generateId(),
       slug,
@@ -113,24 +119,35 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updatedAt: now,
     };
 
-    setPosts((prev) => {
-      const next = [...prev, newPost];
-      return next;
-    });
+    try {
+      const dbPost = BlogPostsService.convertToDatabaseFormat(newPost);
+      const success = await BlogPostsService.addBlogPost(dbPost);
+
+      if (success) {
+        setPosts((prev) => [...prev, newPost]);
+        console.log('✅ Blog post created in Supabase');
+      } else {
+        throw new Error('Failed to create blog post in database');
+      }
+    } catch (error) {
+      console.error('Failed to create blog post:', error);
+    }
 
     return newPost;
   }, [posts]);
 
-  const updatePost = useCallback((slug: string, updates: BlogPostInput): BlogPost | undefined => {
+  const updatePost = useCallback(async (slug: string, updates: BlogPostInput): Promise<BlogPost | undefined> => {
     let updatedPost: BlogPost | undefined;
-    setPosts((prev) => {
-      const existing = prev.find((post) => post.slug === slug);
+
+    try {
+      const existing = posts.find((post) => post.slug === slug);
       if (!existing) {
-        return prev;
+        return undefined;
       }
+
       const now = new Date().toISOString();
       const safeTags = normaliseTags(updates.tags);
-      const otherSlugs = prev.filter((post) => post.slug !== slug).map((post) => post.slug);
+      const otherSlugs = posts.filter((post) => post.slug !== slug).map((post) => post.slug);
       const baseSlug = slugify(updates.slug || updates.title);
       const nextSlug = ensureUniqueSlug(baseSlug || existing.slug, otherSlugs);
 
@@ -143,24 +160,65 @@ export const BlogProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updatedAt: now,
       };
 
-      return prev.map((post) => (post.slug === slug ? updatedPost as BlogPost : post));
-    });
+      const dbPost = BlogPostsService.convertToDatabaseFormat(updatedPost);
+      const success = await BlogPostsService.updateBlogPost(dbPost);
+
+      if (success) {
+        setPosts((prev) => prev.map((post) => (post.slug === slug ? updatedPost as BlogPost : post)));
+        console.log('✅ Blog post updated in Supabase');
+      } else {
+        throw new Error('Failed to update blog post in database');
+      }
+    } catch (error) {
+      console.error('Failed to update blog post:', error);
+    }
+
     return updatedPost;
+  }, [posts]);
+
+  const deletePost = useCallback(async (slug: string) => {
+    try {
+      const success = await BlogPostsService.deleteBlogPost(slug);
+
+      if (success) {
+        setPosts((prev) => prev.filter((post) => post.slug !== slug));
+        console.log('✅ Blog post deleted from Supabase');
+      } else {
+        throw new Error('Failed to delete blog post from database');
+      }
+    } catch (error) {
+      console.error('Failed to delete blog post:', error);
+    }
   }, []);
 
-  const deletePost = useCallback((slug: string) => {
-    setPosts((prev) => prev.filter((post) => post.slug !== slug));
-  }, []);
+  const togglePublished = useCallback(async (slug: string) => {
+    try {
+      const existing = posts.find((post) => post.slug === slug);
+      if (!existing) return;
 
-  const togglePublished = useCallback((slug: string) => {
-    setPosts((prev) =>
-      prev.map((post) =>
-        post.slug === slug
-          ? { ...post, published: !post.published, updatedAt: new Date().toISOString() }
-          : post,
-      ),
-    );
-  }, []);
+      const updatedPost = {
+        ...existing,
+        published: !existing.published,
+        updatedAt: new Date().toISOString()
+      };
+
+      const dbPost = BlogPostsService.convertToDatabaseFormat(updatedPost);
+      const success = await BlogPostsService.updateBlogPost(dbPost);
+
+      if (success) {
+        setPosts((prev) =>
+          prev.map((post) =>
+            post.slug === slug ? updatedPost : post
+          ),
+        );
+        console.log('✅ Blog post publish status updated in Supabase');
+      } else {
+        throw new Error('Failed to update blog post publish status in database');
+      }
+    } catch (error) {
+      console.error('Failed to toggle blog post publish status:', error);
+    }
+  }, [posts]);
 
   const getPostBySlug = useCallback((slug: string): BlogPost | undefined => {
     return posts.find((post) => post.slug === slug);

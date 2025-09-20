@@ -1,5 +1,5 @@
 ﻿import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { apiClient, AdminSettings, crossBrowserSync } from '@/lib/api';
+import { PopupSettingsService } from '@/lib/supabase';
 
 export type PopupTrigger = 'delay' | 'scroll' | 'exit-intent';
 export type PopupFrequency = 'always' | 'once-per-session' | 'once-per-day';
@@ -42,8 +42,6 @@ interface PopupContextValue {
   loadSettings: () => Promise<void>;
 }
 
-const POPUP_STORAGE_KEY = 'ks_popup_settings_v1';
-
 const defaultPopupState: PopupState = {
   enabled: true,
   title: 'Limited Time Offer',
@@ -64,60 +62,50 @@ const defaultPopupState: PopupState = {
   },
 };
 
-const readStoredPopupState = (): PopupState => {
-  if (typeof window === 'undefined') {
-    return defaultPopupState;
-  }
+const convertDatabaseToClient = (dbSettings: any): PopupState => {
+  if (!dbSettings) return defaultPopupState;
 
-  try {
-    const raw = window.localStorage.getItem(POPUP_STORAGE_KEY);
-    if (!raw) {
-      return defaultPopupState;
-    }
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') {
-      return defaultPopupState;
-    }
-    return { ...defaultPopupState, ...parsed } as PopupState;
-  } catch (error) {
-    console.error('Failed to read popup settings:', error);
-    return defaultPopupState;
-  }
+  return {
+    enabled: dbSettings.enabled ?? defaultPopupState.enabled,
+    title: dbSettings.title ?? defaultPopupState.title,
+    message: dbSettings.message ?? defaultPopupState.message,
+    buttonText: dbSettings.button_text ?? defaultPopupState.buttonText,
+    buttonHref: dbSettings.button_href ?? defaultPopupState.buttonHref,
+    showTimer: dbSettings.show_timer ?? defaultPopupState.showTimer,
+    timerDuration: dbSettings.timer_duration ?? defaultPopupState.timerDuration,
+    trigger: dbSettings.trigger ?? defaultPopupState.trigger,
+    delaySeconds: dbSettings.delay_seconds ?? defaultPopupState.delaySeconds,
+    frequency: dbSettings.frequency ?? defaultPopupState.frequency,
+    theme: dbSettings.theme ?? defaultPopupState.theme,
+    pages: typeof dbSettings.pages === 'string' ? JSON.parse(dbSettings.pages) : dbSettings.pages ?? defaultPopupState.pages,
+    lastShownAt: dbSettings.last_shown_at,
+    lastDismissedAt: dbSettings.last_dismissed_at,
+    metrics: {
+      impressions: dbSettings.impressions ?? 0,
+      clicks: dbSettings.clicks ?? 0,
+      dismissals: dbSettings.dismissals ?? 0,
+    },
+  };
 };
 
 const PopupContext = createContext<PopupContextValue | undefined>(undefined);
 
 export const PopupProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [settings, setSettings] = useState<PopupState>(() => readStoredPopupState());
-  const [isLoading, setIsLoading] = useState(false);
+  const [settings, setSettings] = useState<PopupState>(defaultPopupState);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load settings from server on mount
+  // Load settings from Supabase on mount
   useEffect(() => {
     loadSettings();
   }, []);
 
-  // Persist to localStorage and sync across browser tabs
+  // Subscribe to real-time changes from Supabase
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      // Save to localStorage
-      window.localStorage.setItem(POPUP_STORAGE_KEY, JSON.stringify(settings));
-
-      // Force sync across all browser tabs and windows
-      crossBrowserSync.forceSync('admin_popup', settings);
-    } catch (error) {
-      console.error('Failed to persist popup settings:', error);
-    }
-  }, [settings]);
-
-  // Listen for changes from other browser tabs and windows
-  useEffect(() => {
-    const unsubscribe = crossBrowserSync.listenForChanges('admin_popup', (data) => {
-      if (data) {
-        console.log('🔄 Popup settings synced from another browser/tab');
-        setSettings(data);
-      }
+    const unsubscribe = PopupSettingsService.subscribeToChanges((dbSettings) => {
+      console.log('🔄 Popup settings synced from Supabase (cross-browser sync)');
+      const clientSettings = convertDatabaseToClient(dbSettings);
+      setSettings(clientSettings);
     });
 
     return unsubscribe;
@@ -128,25 +116,27 @@ export const PopupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setError(null);
 
     try {
-      const serverSettings = await apiClient.getAdminSettings();
+      const dbSettings = await PopupSettingsService.getPopupSettings();
+      if (dbSettings) {
+        const clientSettings = convertDatabaseToClient(dbSettings);
+        setSettings(clientSettings);
+        console.log('✅ Popup settings loaded from Supabase');
+      } else {
+        // If no settings in database, use defaults and sync them
+        console.log('🎯 No popup settings in database, using defaults');
+        setSettings(defaultPopupState);
 
-      if (serverSettings.popupSettings) {
-        const popupSettings = serverSettings.popupSettings;
-        const newSettings: PopupState = {
-          ...defaultPopupState,
-          ...popupSettings,
-          metrics: settings.metrics, // Keep local metrics
-        };
-        setSettings(newSettings);
+        // Sync default settings to database
+        await PopupSettingsService.updatePopupSettings(defaultPopupState);
       }
     } catch (error) {
-      console.error('Failed to load popup settings from server:', error);
-      setError('Failed to load popup settings from server. Using local settings.');
-      // Keep existing localStorage settings as fallback
+      console.error('Failed to load popup settings from Supabase:', error);
+      setError('Failed to load popup settings from database. Using default settings.');
+      setSettings(defaultPopupState);
     } finally {
       setIsLoading(false);
     }
-  }, [settings.metrics]);
+  }, []);
 
   const updateSettings = useCallback(async (changes: Partial<PopupSettings>) => {
     setIsLoading(true);
@@ -154,55 +144,55 @@ export const PopupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     try {
       const newSettings = { ...settings, ...changes };
+      const success = await PopupSettingsService.updatePopupSettings(newSettings);
 
-      // Prepare settings for server
-      const serverSettings: AdminSettings = {
-        popupSettings: {
-          enabled: newSettings.enabled,
-          title: newSettings.title,
-          message: newSettings.message,
-          buttonText: newSettings.buttonText,
-          buttonHref: newSettings.buttonHref,
-          showTimer: newSettings.showTimer,
-          timerDuration: newSettings.timerDuration,
-          trigger: newSettings.trigger,
-          delaySeconds: newSettings.delaySeconds,
-          frequency: newSettings.frequency,
-          theme: newSettings.theme,
-          pages: newSettings.pages,
-        },
-      };
-
-      const response = await apiClient.updateAdminSettings(serverSettings);
-
-      // Check if server returned a warning (read-only filesystem)
-      if (response.warning) {
-        console.warn('Server warning:', response.warning);
-        // Don't show error for read-only filesystem, just log it
-        setError(null);
+      if (success) {
+        setSettings(newSettings);
+        console.log('✅ Popup settings updated in Supabase and synced across browsers');
+      } else {
+        throw new Error('Failed to update popup settings in database');
       }
-
-      setSettings(newSettings);
     } catch (error) {
-      console.error('Failed to update popup settings on server:', error);
-      setError('Failed to save popup settings to server. Changes saved locally only.');
-      // Still update local state even if server update fails
-      setSettings((prev) => ({ ...prev, ...changes }));
+      console.error('Failed to update popup settings in Supabase:', error);
+      setError('Failed to save popup settings to database. Please try again.');
+      // Don't update local state if database update fails
     } finally {
       setIsLoading(false);
     }
   }, [settings]);
 
-  const updateState = useCallback((changes: Partial<PopupState>) => {
-    setSettings((prev) => ({
-      ...prev,
-      ...changes,
-      metrics: {
-        ...prev.metrics,
-        ...(changes.metrics ?? {}),
-      },
-    }));
-  }, []);
+  const updateState = useCallback(async (changes: Partial<PopupState>) => {
+    try {
+      const newSettings = {
+        ...settings,
+        ...changes,
+        metrics: {
+          ...settings.metrics,
+          ...(changes.metrics ?? {}),
+        },
+      };
+
+      const success = await PopupSettingsService.updatePopupSettings(newSettings);
+
+      if (success) {
+        setSettings(newSettings);
+        console.log('✅ Popup state updated in Supabase');
+      } else {
+        throw new Error('Failed to update popup state in database');
+      }
+    } catch (error) {
+      console.error('Failed to update popup state:', error);
+      // Update local state even if database fails for metrics
+      setSettings((prev) => ({
+        ...prev,
+        ...changes,
+        metrics: {
+          ...prev.metrics,
+          ...(changes.metrics ?? {}),
+        },
+      }));
+    }
+  }, [settings]);
 
   const resetSettings = useCallback(() => {
     setSettings(defaultPopupState);
