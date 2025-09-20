@@ -73,18 +73,18 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // Save to localStorage
       window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
 
-      // Sync across browser tabs
-      crossBrowserSync.syncData('admin_settings', settings);
+      // Force sync across all browser tabs and windows
+      crossBrowserSync.forceSync('admin_settings', settings);
     } catch (error) {
       console.error('Failed to persist settings:', error);
     }
   }, [settings]);
 
-  // Listen for changes from other browser tabs
+  // Listen for changes from other browser tabs and windows
   useEffect(() => {
     const unsubscribe = crossBrowserSync.listenForChanges('admin_settings', (data) => {
-      if (data && !crossBrowserSync.isFromCurrentSession(data)) {
-        console.log('🔄 Settings synced from another tab');
+      if (data) {
+        console.log('🔄 Settings synced from another browser/tab');
         setSettings(data);
       }
     });

@@ -55,18 +55,18 @@ export const ProductsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // Save to localStorage
       window.localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(products));
 
-      // Sync across browser tabs
-      crossBrowserSync.syncData('admin_products', products);
+      // Force sync across all browser tabs and windows
+      crossBrowserSync.forceSync('admin_products', products);
     } catch (error) {
       console.error('Failed to persist products:', error);
     }
   }, [products]);
 
-  // Listen for changes from other browser tabs
+  // Listen for changes from other browser tabs and windows
   useEffect(() => {
     const unsubscribe = crossBrowserSync.listenForChanges('admin_products', (data) => {
-      if (data && !crossBrowserSync.isFromCurrentSession(data)) {
-        console.log('🔄 Products synced from another tab');
+      if (data) {
+        console.log('🔄 Products synced from another browser/tab');
         setProductsState(data);
       }
     });

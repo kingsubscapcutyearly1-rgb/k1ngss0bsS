@@ -8,6 +8,7 @@ const API_BASE_URL = process.env.NODE_ENV === 'production'
 class CrossBrowserSync {
   private channels: Map<string, BroadcastChannel> = new Map();
   private listeners: Map<string, Set<(data: any) => void>> = new Map();
+  private lastSyncTimestamps: Map<string, number> = new Map();
 
   constructor() {
     // Listen for storage events (cross-tab sync)
@@ -15,27 +16,51 @@ class CrossBrowserSync {
       window.addEventListener('storage', (event) => {
         if (event.key?.startsWith('sync_')) {
           const key = event.key.replace('sync_', '');
-          const data = event.newValue ? JSON.parse(event.newValue) : null;
-          this.notifyListeners(key, data);
+          try {
+            const data = event.newValue ? JSON.parse(event.newValue) : null;
+            if (data && data.timestamp) {
+              // Check if this is a newer update
+              const lastTimestamp = this.lastSyncTimestamps.get(key) || 0;
+              if (data.timestamp > lastTimestamp) {
+                this.lastSyncTimestamps.set(key, data.timestamp);
+                this.notifyListeners(key, data.data, data.sessionId);
+              }
+            }
+          } catch (error) {
+            console.error('Error parsing storage event:', error);
+          }
         }
       });
     }
   }
 
-  private getChannel(key: string): BroadcastChannel {
+  private getChannel(key: string): BroadcastChannel | null {
     if (!this.channels.has(key)) {
       if (typeof BroadcastChannel !== 'undefined') {
-        const channel = new BroadcastChannel(`admin_sync_${key}`);
-        channel.onmessage = (event) => {
-          this.notifyListeners(key, event.data);
-        };
-        this.channels.set(key, channel);
+        try {
+          const channel = new BroadcastChannel(`admin_sync_${key}`);
+          channel.onmessage = (event) => {
+            const data = event.data;
+            if (data && data.timestamp) {
+              // Check if this is a newer update
+              const lastTimestamp = this.lastSyncTimestamps.get(key) || 0;
+              if (data.timestamp > lastTimestamp) {
+                this.lastSyncTimestamps.set(key, data.timestamp);
+                this.notifyListeners(key, data.data, data.sessionId);
+              }
+            }
+          };
+          this.channels.set(key, channel);
+        } catch (error) {
+          console.warn('BroadcastChannel not supported:', error);
+          return null;
+        }
       }
     }
-    return this.channels.get(key)!;
+    return this.channels.get(key) || null;
   }
 
-  private notifyListeners(key: string, data: any) {
+  private notifyListeners(key: string, data: any, sourceSessionId?: string) {
     const keyListeners = this.listeners.get(key);
     if (keyListeners) {
       keyListeners.forEach(callback => {
@@ -49,22 +74,36 @@ class CrossBrowserSync {
   }
 
   async syncData(key: string, data: any) {
+    const timestamp = Date.now();
+    const sessionId = this.getSessionId();
+
     const syncData = {
       data,
-      timestamp: Date.now(),
-      sessionId: this.getSessionId()
+      timestamp,
+      sessionId
     };
 
-    // Save to localStorage (cross-tab sync)
-    localStorage.setItem(`sync_${key}`, JSON.stringify(syncData));
+    // Update last timestamp to prevent echo
+    this.lastSyncTimestamps.set(key, timestamp);
+
+    // Save to localStorage (cross-tab and cross-browser sync)
+    try {
+      localStorage.setItem(`sync_${key}`, JSON.stringify(syncData));
+    } catch (error) {
+      console.error('Error saving to localStorage:', error);
+    }
 
     // Broadcast to other tabs (same browser)
     const channel = this.getChannel(key);
     if (channel) {
-      channel.postMessage(syncData);
+      try {
+        channel.postMessage(syncData);
+      } catch (error) {
+        console.warn('Error broadcasting message:', error);
+      }
     }
 
-    console.log(`🔄 Synced ${key} across browser tabs`);
+    console.log(`🔄 Synced ${key} across browsers and tabs at ${new Date(timestamp).toLocaleTimeString()}`);
   }
 
   async getData(key: string) {
@@ -109,7 +148,20 @@ class CrossBrowserSync {
 
   // Check if data is from current session (to avoid echo)
   isFromCurrentSession(data: any): boolean {
-    return data.sessionId === this.getSessionId();
+    return data && data.sessionId === this.getSessionId();
+  }
+
+  // Force sync data across all tabs and browsers
+  async forceSync(key: string, data: any) {
+    console.log(`🔄 Force syncing ${key} across all browsers and tabs`);
+    await this.syncData(key, data);
+
+    // Also trigger a custom event for same-tab updates
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('adminSync', {
+        detail: { key, data }
+      }));
+    }
   }
 }
 

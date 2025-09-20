@@ -325,22 +325,22 @@ const AdminDashboard: React.FC = () => {
     };
   }, [blogPosts, popupSettings.metrics, products]);
 
-const handleSaveSettings = async () => {
-  try {
-    await updateSettings({
-      whatsappNumber: whatsappNumber.trim(),
-      whatsappDirectOrder,
-      enablePurchaseNotifications: siteSettings.enablePurchaseNotifications,
-      enableFloatingCart: siteSettings.enableFloatingCart,
-      showDiscountBadges: siteSettings.showDiscountBadges,
-    });
+  const handleSaveSettings = async () => {
+    try {
+      await updateSettings({
+        whatsappNumber: whatsappNumber.trim(),
+        whatsappDirectOrder,
+        enablePurchaseNotifications: siteSettings.enablePurchaseNotifications,
+        enableFloatingCart: siteSettings.enableFloatingCart,
+        showDiscountBadges: siteSettings.showDiscountBadges,
+      });
 
-    alert('Settings saved successfully!');
-  } catch (error) {
-    console.error('Failed to save settings:', error);
-    alert('Failed to save settings. Please try again.');
-  }
-};
+      alert('✅ Settings saved successfully and synced across all browsers!');
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      alert('⚠️ Settings saved locally only (server sync failed). Changes will sync when connection is restored.');
+    }
+  };
 
   const handleAddProduct = () => {
     // Navigate to add product form

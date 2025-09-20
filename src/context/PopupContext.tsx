@@ -104,18 +104,18 @@ export const PopupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Save to localStorage
       window.localStorage.setItem(POPUP_STORAGE_KEY, JSON.stringify(settings));
 
-      // Sync across browser tabs
-      crossBrowserSync.syncData('admin_popup', settings);
+      // Force sync across all browser tabs and windows
+      crossBrowserSync.forceSync('admin_popup', settings);
     } catch (error) {
       console.error('Failed to persist popup settings:', error);
     }
   }, [settings]);
 
-  // Listen for changes from other browser tabs
+  // Listen for changes from other browser tabs and windows
   useEffect(() => {
     const unsubscribe = crossBrowserSync.listenForChanges('admin_popup', (data) => {
-      if (data && !crossBrowserSync.isFromCurrentSession(data)) {
-        console.log('🔄 Popup settings synced from another tab');
+      if (data) {
+        console.log('🔄 Popup settings synced from another browser/tab');
         setSettings(data);
       }
     });
