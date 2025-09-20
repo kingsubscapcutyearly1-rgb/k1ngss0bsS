@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { siteConfig } from '@/data/site-config';
-import { apiClient, AdminSettings, crossBrowserSync } from '@/lib/api';
+import { AdminSettingsService, AdminSettings as SupabaseAdminSettings } from '@/lib/supabase';
 
 export interface SiteSettings {
   whatsappNumber: string;
@@ -20,8 +20,6 @@ interface SettingsContextValue {
   loadSettings: () => Promise<void>;
 }
 
-const SETTINGS_STORAGE_KEY = 'ks_settings_v1';
-
 const defaultSettings: SiteSettings = {
   whatsappNumber: siteConfig.whatsappNumber,
   whatsappDirectOrder: siteConfig.whatsappDirectOrder,
@@ -33,60 +31,50 @@ const defaultSettings: SiteSettings = {
 
 const SettingsContext = createContext<SettingsContextValue | undefined>(undefined);
 
-const readStoredSettings = (): SiteSettings => {
-  if (typeof window === 'undefined') {
+// Convert Supabase settings to client format
+const convertSupabaseToClient = (supabaseSettings: SupabaseAdminSettings | null): SiteSettings => {
+  if (!supabaseSettings) {
     return defaultSettings;
   }
 
-  try {
-    const raw = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
-    if (!raw) {
-      return defaultSettings;
-    }
+  return {
+    whatsappNumber: supabaseSettings.whatsapp_number || defaultSettings.whatsappNumber,
+    whatsappDirectOrder: supabaseSettings.whatsapp_direct_order ?? defaultSettings.whatsappDirectOrder,
+    enablePurchaseNotifications: supabaseSettings.enable_purchase_notifications ?? defaultSettings.enablePurchaseNotifications,
+    enableFloatingCart: supabaseSettings.enable_floating_cart ?? defaultSettings.enableFloatingCart,
+    showDiscountBadges: supabaseSettings.show_discount_badges ?? defaultSettings.showDiscountBadges,
+    showBreadcrumbs: supabaseSettings.show_breadcrumbs ?? defaultSettings.showBreadcrumbs,
+  };
+};
 
-    const parsed = JSON.parse(raw) as Partial<SiteSettings> | null;
-    if (!parsed || typeof parsed !== 'object') {
-      return defaultSettings;
-    }
-
-    return { ...defaultSettings, ...parsed };
-  } catch (error) {
-    console.error('Failed to read stored settings:', error);
-    return defaultSettings;
-  }
+// Convert client settings to Supabase format
+const convertClientToSupabase = (clientSettings: SiteSettings): Partial<SupabaseAdminSettings> => {
+  return {
+    whatsapp_number: clientSettings.whatsappNumber,
+    whatsapp_direct_order: clientSettings.whatsappDirectOrder,
+    enable_purchase_notifications: clientSettings.enablePurchaseNotifications,
+    enable_floating_cart: clientSettings.enableFloatingCart,
+    show_discount_badges: clientSettings.showDiscountBadges,
+    show_breadcrumbs: clientSettings.showBreadcrumbs,
+  };
 };
 
 export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [settings, setSettings] = useState<SiteSettings>(() => readStoredSettings());
-  const [isLoading, setIsLoading] = useState(false);
+  const [settings, setSettings] = useState<SiteSettings>(defaultSettings);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load settings from server on mount
+  // Load settings from Supabase on mount
   useEffect(() => {
     loadSettings();
   }, []);
 
-  // Persist to localStorage and sync across browser tabs
+  // Subscribe to real-time changes from Supabase
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      // Save to localStorage
-      window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-
-      // Force sync across all browser tabs and windows
-      crossBrowserSync.forceSync('admin_settings', settings);
-    } catch (error) {
-      console.error('Failed to persist settings:', error);
-    }
-  }, [settings]);
-
-  // Listen for changes from other browser tabs and windows
-  useEffect(() => {
-    const unsubscribe = crossBrowserSync.listenForChanges('admin_settings', (data) => {
-      if (data) {
-        console.log('🔄 Settings synced from another browser/tab');
-        setSettings(data);
-      }
+    const unsubscribe = AdminSettingsService.subscribeToChanges((supabaseSettings) => {
+      console.log('🔄 Settings synced from Supabase (cross-browser sync)');
+      const clientSettings = convertSupabaseToClient(supabaseSettings);
+      setSettings(clientSettings);
     });
 
     return unsubscribe;
@@ -97,23 +85,14 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setError(null);
 
     try {
-      const serverSettings = await apiClient.getAdminSettings();
-
-      // Convert server settings to client format
-      const clientSettings: SiteSettings = {
-        whatsappNumber: serverSettings.whatsappNumber || defaultSettings.whatsappNumber,
-        whatsappDirectOrder: serverSettings.whatsappDirectOrder ?? defaultSettings.whatsappDirectOrder,
-        enablePurchaseNotifications: serverSettings.enablePurchaseNotifications ?? defaultSettings.enablePurchaseNotifications,
-        enableFloatingCart: serverSettings.enableFloatingCart ?? defaultSettings.enableFloatingCart,
-        showDiscountBadges: serverSettings.showDiscountBadges ?? defaultSettings.showDiscountBadges,
-        showBreadcrumbs: serverSettings.showBreadcrumbs ?? defaultSettings.showBreadcrumbs,
-      };
-
+      const supabaseSettings = await AdminSettingsService.getSettings();
+      const clientSettings = convertSupabaseToClient(supabaseSettings);
       setSettings(clientSettings);
+      console.log('✅ Settings loaded from Supabase');
     } catch (error) {
-      console.error('Failed to load settings from server:', error);
-      setError('Failed to load settings from server. Using local settings.');
-      // Keep existing localStorage settings as fallback
+      console.error('Failed to load settings from Supabase:', error);
+      setError('Failed to load settings from database. Using default settings.');
+      setSettings(defaultSettings);
     } finally {
       setIsLoading(false);
     }
@@ -125,32 +104,20 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     try {
       const newSettings = { ...settings, ...changes };
+      const supabaseSettings = convertClientToSupabase(newSettings);
 
-      // Prepare settings for server
-      const serverSettings: AdminSettings = {
-        whatsappNumber: newSettings.whatsappNumber,
-        whatsappDirectOrder: newSettings.whatsappDirectOrder,
-        enablePurchaseNotifications: newSettings.enablePurchaseNotifications,
-        enableFloatingCart: newSettings.enableFloatingCart,
-        showDiscountBadges: newSettings.showDiscountBadges,
-        showBreadcrumbs: newSettings.showBreadcrumbs,
-      };
+      const success = await AdminSettingsService.updateSettings(supabaseSettings);
 
-      const response = await apiClient.updateAdminSettings(serverSettings);
-
-      // Check if server returned a warning (read-only filesystem)
-      if (response.warning) {
-        console.warn('Server warning:', response.warning);
-        // Don't show error for read-only filesystem, just log it
-        setError(null);
+      if (success) {
+        setSettings(newSettings);
+        console.log('✅ Settings updated in Supabase and synced across browsers');
+      } else {
+        throw new Error('Failed to update settings in database');
       }
-
-      setSettings(newSettings);
     } catch (error) {
-      console.error('Failed to update settings on server:', error);
-      setError('Failed to save settings to server. Changes saved locally only.');
-      // Still update local state even if server update fails
-      setSettings((prev) => ({ ...prev, ...changes }));
+      console.error('Failed to update settings in Supabase:', error);
+      setError('Failed to save settings to database. Please try again.');
+      // Don't update local state if database update fails
     } finally {
       setIsLoading(false);
     }

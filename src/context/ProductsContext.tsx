@@ -1,74 +1,36 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { products as defaultProducts, Product } from '@/data/products';
-import { apiClient, crossBrowserSync } from '@/lib/api';
+import { ProductsService, ProductData } from '@/lib/supabase';
 
 type ProductsContextValue = {
   products: Product[];
   setProducts: (next: Product[]) => Promise<void>;
-  updateProduct: (product: Product) => void;
-  deleteProduct: (productId: string) => void;
+  updateProduct: (product: Product) => Promise<void>;
+  deleteProduct: (productId: string) => Promise<void>;
   resetProducts: () => void;
   isLoading: boolean;
   error: string | null;
   loadProducts: () => Promise<void>;
 };
 
-const PRODUCTS_STORAGE_KEY = 'ks_products_override_v1';
-
-const readStoredProducts = (): Product[] => {
-  if (typeof window === 'undefined') {
-    return defaultProducts;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(PRODUCTS_STORAGE_KEY);
-    if (!raw) {
-      return defaultProducts;
-    }
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      return defaultProducts;
-    }
-    return parsed as Product[];
-  } catch (error) {
-    console.error('Failed to parse stored products:', error);
-    return defaultProducts;
-  }
-};
-
 const ProductsContext = createContext<ProductsContextValue | undefined>(undefined);
 
 export const ProductsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [products, setProductsState] = useState<Product[]>(() => readStoredProducts());
-  const [isLoading, setIsLoading] = useState(false);
+  const [products, setProductsState] = useState<Product[]>(defaultProducts);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load products from server on mount
+  // Load products from Supabase on mount
   useEffect(() => {
     loadProducts();
   }, []);
 
-  // Persist to localStorage and sync across browser tabs
+  // Subscribe to real-time changes from Supabase
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      // Save to localStorage
-      window.localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(products));
-
-      // Force sync across all browser tabs and windows
-      crossBrowserSync.forceSync('admin_products', products);
-    } catch (error) {
-      console.error('Failed to persist products:', error);
-    }
-  }, [products]);
-
-  // Listen for changes from other browser tabs and windows
-  useEffect(() => {
-    const unsubscribe = crossBrowserSync.listenForChanges('admin_products', (data) => {
-      if (data) {
-        console.log('🔄 Products synced from another browser/tab');
-        setProductsState(data);
-      }
+    const unsubscribe = ProductsService.subscribeToChanges((supabaseProducts) => {
+      console.log('🔄 Products synced from Supabase (cross-browser sync)');
+      const clientProducts = supabaseProducts.map(ProductsService.convertToClientFormat);
+      setProductsState(clientProducts);
     });
 
     return unsubscribe;
@@ -79,17 +41,23 @@ export const ProductsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setError(null);
 
     try {
-      const serverProducts = await apiClient.getProducts();
-      if (serverProducts && serverProducts.length > 0) {
-        setProductsState(serverProducts);
+      const supabaseProducts = await ProductsService.getProducts();
+      if (supabaseProducts && supabaseProducts.length > 0) {
+        const clientProducts = supabaseProducts.map(ProductsService.convertToClientFormat);
+        setProductsState(clientProducts);
+        console.log('✅ Products loaded from Supabase');
       } else {
-        // If no products from server, use default products
+        // If no products in database, use default products and sync them
+        console.log('📦 No products in database, using defaults');
         setProductsState(defaultProducts);
+        
+        // Sync default products to database
+        const dbProducts = defaultProducts.map(ProductsService.convertToDatabaseFormat);
+        await ProductsService.updateProducts(dbProducts);
       }
     } catch (error) {
-      console.error('Failed to load products from server:', error);
-      setError('Failed to load products from server. Using default products.');
-      // Use default products as fallback
+      console.error('Failed to load products from Supabase:', error);
+      setError('Failed to load products from database. Using default products.');
       setProductsState(defaultProducts);
     } finally {
       setIsLoading(false);
@@ -101,41 +69,63 @@ export const ProductsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setError(null);
 
     try {
-      // Sync to server
-      const response = await apiClient.updateProducts(next);
+      const dbProducts = next.map(ProductsService.convertToDatabaseFormat);
+      const success = await ProductsService.updateProducts(dbProducts);
 
-      // Check if server returned a warning (read-only filesystem)
-      if (response.warning) {
-        console.warn('Server warning:', response.warning);
-        // Don't show error for read-only filesystem, just log it
-        setError(null);
+      if (success) {
+        setProductsState(next);
+        console.log('✅ Products updated in Supabase and synced across browsers');
+      } else {
+        throw new Error('Failed to update products in database');
       }
-
-      setProductsState(next);
     } catch (error) {
-      console.error('Failed to save products to server:', error);
-      setError('Failed to save products to server. Changes saved locally only.');
-      // Still update local state even if server update fails
-      setProductsState(next);
+      console.error('Failed to update products in Supabase:', error);
+      setError('Failed to save products to database. Please try again.');
+      // Don't update local state if database update fails
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  const updateProduct = useCallback((product: Product) => {
-    setProductsState((prev) => {
-      const exists = prev.findIndex((item) => item.id === product.id);
-      if (exists === -1) {
-        return [...prev, product];
+  const updateProduct = useCallback(async (product: Product) => {
+    try {
+      const dbProduct = ProductsService.convertToDatabaseFormat(product);
+      const success = await ProductsService.updateProduct(dbProduct);
+      
+      if (success) {
+        setProductsState((prev) => {
+          const exists = prev.findIndex((item) => item.id === product.id);
+          if (exists === -1) {
+            return [...prev, product];
+          }
+          const next = [...prev];
+          next[exists] = product;
+          return next;
+        });
+        console.log('✅ Product updated in Supabase');
+      } else {
+        throw new Error('Failed to update product in database');
       }
-      const next = [...prev];
-      next[exists] = product;
-      return next;
-    });
+    } catch (error) {
+      console.error('Failed to update product:', error);
+      setError('Failed to update product in database.');
+    }
   }, []);
 
-  const deleteProduct = useCallback((productId: string) => {
-    setProductsState((prev) => prev.filter((item) => item.id !== productId));
+  const deleteProduct = useCallback(async (productId: string) => {
+    try {
+      const success = await ProductsService.deleteProduct(productId);
+      
+      if (success) {
+        setProductsState((prev) => prev.filter((item) => item.id !== productId));
+        console.log('✅ Product deleted from Supabase');
+      } else {
+        throw new Error('Failed to delete product from database');
+      }
+    } catch (error) {
+      console.error('Failed to delete product:', error);
+      setError('Failed to delete product from database.');
+    }
   }, []);
 
   const resetProducts = useCallback(() => {

@@ -17,10 +17,10 @@ const AdminLogin: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Default admin credentials
+  // Admin credentials from environment variables
   const ADMIN_CREDENTIALS = {
-    username: 'admin',
-    password: 'kingsubscription2024'
+    username: import.meta.env.VITE_ADMIN_USERNAME || 'admin',
+    password: import.meta.env.VITE_ADMIN_PASSWORD || 'kingsubscription2024'
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -136,8 +136,8 @@ const AdminLogin: React.FC = () => {
 
           <div className="text-center text-sm text-gray-500 dark:text-gray-400 border-t pt-4">
             <p className="mb-2">Default Credentials:</p>
-            <p><strong>Username:</strong> admin</p>
-            <p><strong>Password:</strong> kingsubscription2024</p>
+            <p><strong>Username:</strong> {ADMIN_CREDENTIALS.username}</p>
+            <p><strong>Password:</strong> {ADMIN_CREDENTIALS.password}</p>
           </div>
         </CardContent>
       </Card>
