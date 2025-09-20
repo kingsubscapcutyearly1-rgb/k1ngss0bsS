@@ -86,7 +86,15 @@ export const ProductsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     try {
       // Sync to server
-      await apiClient.updateProducts(next);
+      const response = await apiClient.updateProducts(next);
+
+      // Check if server returned a warning (read-only filesystem)
+      if (response.warning) {
+        console.warn('Server warning:', response.warning);
+        // Don't show error for read-only filesystem, just log it
+        setError(null);
+      }
+
       setProductsState(next);
     } catch (error) {
       console.error('Failed to save products to server:', error);

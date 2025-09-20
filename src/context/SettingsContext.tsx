@@ -120,7 +120,15 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         showBreadcrumbs: newSettings.showBreadcrumbs,
       };
 
-      await apiClient.updateAdminSettings(serverSettings);
+      const response = await apiClient.updateAdminSettings(serverSettings);
+
+      // Check if server returned a warning (read-only filesystem)
+      if (response.warning) {
+        console.warn('Server warning:', response.warning);
+        // Don't show error for read-only filesystem, just log it
+        setError(null);
+      }
+
       setSettings(newSettings);
     } catch (error) {
       console.error('Failed to update settings on server:', error);

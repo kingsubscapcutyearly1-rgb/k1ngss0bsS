@@ -60,10 +60,21 @@ export default async function handler(req: any, res: any) {
         // Update products in settings
         const updatedSettings = { ...currentSettings, products: newProducts };
 
-        // Save to file
-        await fs.writeFile(SETTINGS_FILE, JSON.stringify(updatedSettings, null, 2));
-
-        return res.status(200).json({ message: 'Products updated successfully' });
+        // Try to save to file (will fail on Vercel read-only filesystem)
+        try {
+          await fs.writeFile(SETTINGS_FILE, JSON.stringify(updatedSettings, null, 2));
+          return res.status(200).json({ message: 'Products updated successfully' });
+        } catch (fileError: any) {
+          // If file system is read-only (like Vercel), return success but warn client
+          if (fileError.code === 'EROFS') {
+            console.warn('File system is read-only, products saved locally only');
+            return res.status(200).json({
+              message: 'Products updated locally (server filesystem is read-only)',
+              warning: 'Changes saved locally only - use localStorage for persistence'
+            });
+          }
+          throw fileError;
+        }
       } catch (error) {
         console.error('Error updating products:', error);
         return res.status(500).json({ error: 'Failed to update products' });

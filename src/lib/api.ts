@@ -68,8 +68,8 @@ class ApiClient {
     return this.request<AdminSettings>('/api/admin/settings');
   }
 
-  async updateAdminSettings(settings: AdminSettings): Promise<{ message: string }> {
-    return this.request<{ message: string }>('/api/admin/settings', {
+  async updateAdminSettings(settings: AdminSettings): Promise<{ message: string; warning?: string }> {
+    return this.request<{ message: string; warning?: string }>('/api/admin/settings', {
       method: 'POST',
       body: JSON.stringify(settings),
     });
@@ -86,8 +86,8 @@ class ApiClient {
     return this.request<Product[]>('/api/admin/products');
   }
 
-  async updateProducts(products: Product[]): Promise<{ message: string }> {
-    return this.request<{ message: string }>('/api/admin/products', {
+  async updateProducts(products: Product[]): Promise<{ message: string; warning?: string }> {
+    return this.request<{ message: string; warning?: string }>('/api/admin/products', {
       method: 'POST',
       body: JSON.stringify(products),
     });

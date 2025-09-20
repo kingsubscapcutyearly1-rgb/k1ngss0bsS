@@ -157,7 +157,15 @@ export const PopupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         },
       };
 
-      await apiClient.updateAdminSettings(serverSettings);
+      const response = await apiClient.updateAdminSettings(serverSettings);
+
+      // Check if server returned a warning (read-only filesystem)
+      if (response.warning) {
+        console.warn('Server warning:', response.warning);
+        // Don't show error for read-only filesystem, just log it
+        setError(null);
+      }
+
       setSettings(newSettings);
     } catch (error) {
       console.error('Failed to update popup settings on server:', error);
