@@ -15,7 +15,7 @@ import Footer from './components/Footer';
 import ScrollToTop from './components/ScrollToTop';
 import SecurityHeaders from './components/SecurityHeaders';
 import SEOHead from './components/SEOHead';
-import { AccessibilityProvider, AccessibilityButton } from './components/AccessibilityProvider';
+import { AccessibilityProvider } from './components/AccessibilityProvider';
 import { lazy, Suspense } from 'react';
 const Home = lazy(() => import('./pages/Home'));
 const Tools = lazy(() => import('./pages/Tools'));
@@ -101,7 +101,6 @@ const App = () => (
                       <PopupAnnouncement />
                       <FloatingElements />
                       <FloatingCart />
-                      <AccessibilityButton />
                     </div>
                   </BrowserRouter>
                 </TooltipProvider>

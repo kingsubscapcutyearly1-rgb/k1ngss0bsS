@@ -1,14 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 interface AccessibilityContextType {
-  highContrast: boolean;
-  largeText: boolean;
-  reducedMotion: boolean;
   screenReader: boolean;
   focusVisible: boolean;
-  toggleHighContrast: () => void;
-  toggleLargeText: () => void;
-  toggleReducedMotion: () => void;
   announceToScreenReader: (message: string, priority?: 'polite' | 'assertive') => void;
 }
 
@@ -27,11 +21,9 @@ interface AccessibilityProviderProps {
 }
 
 export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ children }) => {
-  const [highContrast, setHighContrast] = useState(false);
-  const [largeText, setLargeText] = useState(false);
-  const [reducedMotion, setReducedMotion] = useState(false);
   const [screenReader, setScreenReader] = useState(false);
   const [focusVisible, setFocusVisible] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
 
   // Detect screen reader
   useEffect(() => {
@@ -76,18 +68,6 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ ch
   useEffect(() => {
     const root = document.documentElement;
 
-    if (highContrast) {
-      root.classList.add('high-contrast');
-    } else {
-      root.classList.remove('high-contrast');
-    }
-
-    if (largeText) {
-      root.classList.add('large-text');
-    } else {
-      root.classList.remove('large-text');
-    }
-
     if (reducedMotion) {
       root.classList.add('reduced-motion');
     } else {
@@ -99,7 +79,7 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ ch
     } else {
       root.classList.remove('focus-visible');
     }
-  }, [highContrast, largeText, reducedMotion, focusVisible]);
+  }, [reducedMotion, focusVisible]);
 
   // Screen reader announcement function
   const announceToScreenReader = (message: string, priority: 'polite' | 'assertive' = 'polite') => {
@@ -166,14 +146,8 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ ch
   }, []);
 
   const value: AccessibilityContextType = {
-    highContrast,
-    largeText,
-    reducedMotion,
     screenReader,
     focusVisible,
-    toggleHighContrast: () => setHighContrast(!highContrast),
-    toggleLargeText: () => setLargeText(!largeText),
-    toggleReducedMotion: () => setReducedMotion(!reducedMotion),
     announceToScreenReader
   };
 
@@ -184,52 +158,6 @@ export const AccessibilityProvider: React.FC<AccessibilityProviderProps> = ({ ch
   );
 };
 
-// Accessibility Button Component
-export const AccessibilityButton: React.FC = () => {
-  const { highContrast, largeText, reducedMotion, toggleHighContrast, toggleLargeText, toggleReducedMotion } = useAccessibility();
 
-  return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
-      <button
-        onClick={toggleHighContrast}
-        className={`p-3 rounded-full shadow-lg transition-colors ${
-          highContrast
-            ? 'bg-black text-white border-2 border-white'
-            : 'bg-white text-black border-2 border-gray-300 hover:bg-gray-100'
-        }`}
-        aria-label={highContrast ? 'Disable high contrast mode' : 'Enable high contrast mode'}
-        title={highContrast ? 'Disable high contrast mode' : 'Enable high contrast mode'}
-      >
-        <span className="text-lg" aria-hidden="true">🔆</span>
-      </button>
-
-      <button
-        onClick={toggleLargeText}
-        className={`p-3 rounded-full shadow-lg transition-colors ${
-          largeText
-            ? 'bg-blue-600 text-white'
-            : 'bg-white text-black border-2 border-gray-300 hover:bg-gray-100'
-        }`}
-        aria-label={largeText ? 'Disable large text mode' : 'Enable large text mode'}
-        title={largeText ? 'Disable large text mode' : 'Enable large text mode'}
-      >
-        <span className="text-lg" aria-hidden="true">📝</span>
-      </button>
-
-      <button
-        onClick={toggleReducedMotion}
-        className={`p-3 rounded-full shadow-lg transition-colors ${
-          reducedMotion
-            ? 'bg-green-600 text-white'
-            : 'bg-white text-black border-2 border-gray-300 hover:bg-gray-100'
-        }`}
-        aria-label={reducedMotion ? 'Disable reduced motion' : 'Enable reduced motion'}
-        title={reducedMotion ? 'Disable reduced motion' : 'Enable reduced motion'}
-      >
-        <span className="text-lg" aria-hidden="true">🏃</span>
-      </button>
-    </div>
-  );
-};
 
 export default AccessibilityProvider;

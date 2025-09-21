@@ -2,7 +2,7 @@
 
 ## 📋 EVERYTHING YOU NEED - FROM ZERO TO PRODUCTION
 
-**Version 4.0** | **Last Updated: January 20, 2025**
+**Version 5.0** | **Last Updated: September 20, 2025**
 
 ---
 
@@ -65,7 +65,7 @@ Region: [Select closest: us-east-1]
 **✅ WHAT TO DO:**
 1. Go to **[supabase.com](https://supabase.com)** → Your project
 2. Click **"SQL Editor"** → **"New Query"**
-3. **Copy the ENTIRE content** from `supabase-migration.sql` file
+3. **Copy the ENTIRE content** from `supabase-working-migration.sql` file
 4. **Paste it completely** into the SQL Editor
 5. Click **"Run"** button
 
@@ -538,10 +538,16 @@ VITE_SUPPORT_EMAIL=support@kingsubscription.com
 ## 📞 SUPPORT & RESOURCES
 
 ### **Help Resources:**
-1. **Complete SQL Migration**: `supabase-migration.sql`
-2. **Environment Setup**: `VERCEL_ENV_SETUP.md`
-3. **Admin Improvements**: `ADMIN_PANEL_IMPROVEMENTS.md`
-4. **Website Analysis**: `COMPLETE_WEBSITE_ANALYSIS.md`
+1. **Complete SQL Migration**: `supabase-working-migration.sql`
+2. **Complete A to Z Guide**: `COMPLETE_A_TO_Z_GUIDE.md` (This comprehensive guide)
+3. **Basic Setup Guide**: `README.md`
+4. **Project Structure**: All core files in src/, server/, public/, api/ directories
+
+### **Recent Updates (Version 5.0):**
+- ✅ **Project Cleanup**: Removed 18+ redundant .md files and 7+ old SQL files
+- ✅ **Optimized Structure**: Kept only essential files for clean development
+- ✅ **Updated References**: All file paths and instructions updated for current state
+- ✅ **Verified Working**: Project tested and confirmed functional after cleanup
 
 ### **Debug Commands:**
 ```bash
